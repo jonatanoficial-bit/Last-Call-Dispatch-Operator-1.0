@@ -286,6 +286,7 @@
   // ----------------------------
   function humanSeverity(sev) {
     const s = String(sev || "leve").toLowerCase();
+    if (s === "critico") return "CRÍTICO";
     if (s === "grave") return "GRAVE";
     if (s === "medio") return "MÉDIO";
     if (s === "trote") return "TROTE";
@@ -294,6 +295,7 @@
 
   function severityScore(sev) {
     const s = String(sev || "leve").toLowerCase();
+    if (s === "critico") return 28;
     if (s === "grave") return 20;
     if (s === "medio") return 14;
     if (s === "trote") return 0;
@@ -302,6 +304,7 @@
 
   function severityBadge(sev) {
     const s = String(sev || "leve").toLowerCase();
+    if (s === "critico") return `<span class="pill" style="border-color:rgba(255,70,110,0.45); box-shadow:0 0 0 1px rgba(255,70,110,0.18)">CRÍTICO</span>`;
     if (s === "grave") return `<span class="pill" style="border-color:rgba(255,70,110,0.35); box-shadow:0 0 0 1px rgba(255,70,110,0.12)">GRAVE</span>`;
     if (s === "medio") return `<span class="pill" style="border-color:rgba(255,190,70,0.35); box-shadow:0 0 0 1px rgba(255,190,70,0.12)">MÉDIO</span>`;
     if (s === "trote") return `<span class="pill" style="border-color:rgba(160,160,160,0.25); box-shadow:0 0 0 1px rgba(160,160,160,0.10)">TROTE</span>`;
@@ -514,7 +517,16 @@
       confidenceTrote: baseSev === "trote" ? 2 : 0,
 
       queueTTL: queueTTLBySeverity(baseSev, state.difficulty),
-      callTTL: callTTLBySeverity(baseSev, state.difficulty),
+      // Call TTL (time-to-fail) can be provided by the call definition (timers.fail)
+      callTTL: (def && def.timers && typeof def.timers.fail === "number")
+        ? Math.max(10, Math.floor(def.timers.fail))
+        : callTTLBySeverity(baseSev, state.difficulty),
+
+      // Worsen timer triggers a severity escalation (timers.worsen)
+      worsenTTL: (def && def.timers && typeof def.timers.worsen === "number")
+        ? Math.max(5, Math.floor(def.timers.worsen))
+        : null,
+      worsened: false,
 
       overdue: false,
       overduePenalized: false,
@@ -542,11 +554,82 @@
     }
 
     if (effect.severity) {
-      const rank = { trote: 0, leve: 1, medio: 2, grave: 3 };
+      const rank = { trote: 0, leve: 1, medio: 2, grave: 3, critico: 4 };
       const cur = state.activeCall.severity || "leve";
       const next = String(effect.severity).toLowerCase();
       if (rank[next] >= rank[cur]) state.activeCall.severity = next;
     }
+
+    // Virtual time penalty (represents delay/confusion) applied directly to the
+    // remaining call TTL. This increases pressure without requiring a map/ETA.
+    if (typeof effect.timePenaltySec === "number") {
+      const p = Math.max(0, Math.floor(effect.timePenaltySec));
+      if (p > 0) {
+        state.activeCall.callTTL = Math.max(0, state.activeCall.callTTL - p);
+      }
+    }
+
+    // Force an escalation on critical mistakes
+    if (effect.forceWorsen) {
+      worsenActiveCall("Erro crítico no protocolo");
+    }
+  }
+
+  // ----------------------------
+  // Agravamento / Falha por tempo
+  // ----------------------------
+  function escalateSeverity(cur) {
+    const s = String(cur || "leve").toLowerCase();
+    if (s === "trote") return "trote";
+    if (s === "leve") return "medio";
+    if (s === "medio") return "grave";
+    if (s === "grave") return "critico";
+    return "critico";
+  }
+
+  function worsenActiveCall(reason) {
+    const c = state.activeCall;
+    if (!c || c.worsened || c.severity === "trote") return;
+    c.worsened = true;
+    c.severity = escalateSeverity(c.severity);
+    // Increase pressure a bit more when it worsens
+    c.callTTL = Math.max(0, c.callTTL - 6);
+    log(`⚠️ OCORRÊNCIA AGRAVOU (${reason || "tempo"}). Gravidade agora: ${humanSeverity(c.severity)}.`);
+    renderActiveCall(true);
+  }
+
+  function failActiveCall(reason) {
+    const c = state.activeCall;
+    if (!c) return;
+
+    const def = c.def;
+    state.stats.wrong += 1;
+    state.career.totalFail += 1;
+
+    const scoreDelta = -Math.max(12, severityScore(c.severity));
+    const xpDelta = -3;
+    state.score += scoreDelta;
+    addXp(xpDelta);
+
+    addWarning("Falha por tempo/pressão na chamada.");
+    log(`☠️ FALHA NA CHAMADA: "${def.title}" (${reason || "tempo esgotado"}) (${scoreDelta})`);
+
+    setReport({
+      title: def.title,
+      severity: c.severity,
+      outcomeLabel: "FALHA (TEMPO)",
+      description: def && def.outcomes && def.outcomes.fail
+        ? def.outcomes.fail
+        : "Tempo esgotado. A ocorrência não recebeu resposta adequada a tempo.",
+      unitName: "—",
+      unitRole: "—",
+      scoreDelta,
+      xpDelta,
+      handleTime: Math.max(0, (state.timeSec - c.startedAt)),
+    });
+
+    state.activeCall = null;
+    renderAll();
   }
 
   // ----------------------------
@@ -663,10 +746,34 @@
 
     if (!state.activeCall) {
       el.pillCallTimer.textContent = "Sem chamada";
+      el.pillCallTimer.style.borderColor = "";
       return;
     }
     const overdue = state.activeCall.overdue;
-    el.pillCallTimer.textContent = overdue ? `Tempo excedido` : `Tempo da chamada: ${fmtTime(state.activeCall.callTTL)}`;
+    const callT = Math.max(0, state.activeCall.callTTL || 0);
+    const worsT = state.activeCall.worsenTTL;
+
+    if (overdue) {
+      el.pillCallTimer.textContent = `Tempo excedido`;
+      el.pillCallTimer.style.borderColor = "rgba(255,70,110,0.45)";
+      return;
+    }
+
+    // Show both timers when available
+    if (typeof worsT === "number" && !state.activeCall.worsened) {
+      el.pillCallTimer.textContent = `FALHA em ${fmtTime(callT)} • AGRAVA em ${fmtTime(Math.max(0, worsT))}`;
+    } else {
+      el.pillCallTimer.textContent = `FALHA em ${fmtTime(callT)}`;
+    }
+
+    // Colour cue based on urgency
+    if (callT <= 15) {
+      el.pillCallTimer.style.borderColor = "rgba(255,70,110,0.45)";
+    } else if (typeof worsT === "number" && worsT <= 12 && !state.activeCall.worsened) {
+      el.pillCallTimer.style.borderColor = "rgba(255,190,70,0.45)";
+    } else {
+      el.pillCallTimer.style.borderColor = "rgba(255,255,255,0.12)";
+    }
   }
 
   function setButtons() {
@@ -1204,10 +1311,23 @@
     }
 
     if (hasActive) {
+      // Worsen timer: escalates severity once
+      if (state.activeCall.worsenTTL !== null && !state.activeCall.worsened) {
+        state.activeCall.worsenTTL -= 1;
+        if (state.activeCall.worsenTTL <= 0) {
+          state.activeCall.worsenTTL = 0;
+          worsenActiveCall("tempo");
+        }
+      }
+
+      // Fail timer
       state.activeCall.callTTL -= 1;
       if (state.activeCall.callTTL <= 0) {
         state.activeCall.callTTL = 0;
         state.activeCall.overdue = true;
+        // Auto-fail when time runs out (realistic pressure)
+        failActiveCall("tempo esgotado");
+        return; // renderAll already called inside failActiveCall
       }
       updateDispatchUnlock();
     }

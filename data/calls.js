@@ -1,440 +1,1994 @@
-/* =========================================================
-   data/calls.js - Last Call Dispatch Operator
-   Fase 2B (Perguntas dinâmicas por caso + severidade evolutiva)
-   ========================================================= */
-
+/* Auto-gerado: ETAPA 2 (Core gameplay com timers, agravamento e consequências) */
 window.CALLS = [
-  // =========================
-  // BR - POLÍCIA (190)
-  // =========================
   {
-    id: "br_pol_trote_risada_01",
-    agency: "police",
-    region: "BR",
-    title: "Trote com risadas e história absurda",
-    baseSeverity: "trote",
-    protocol: {
-      required: ["confirm_intent"],
-      questions: [
+    "id": "pol_som_alto_01",
+    "agency": "police",
+    "region": "BR/US",
+    "title": "Perturbação do sossego (som alto)",
+    "baseSeverity": "leve",
+    "timers": {
+      "worsen": 55,
+      "fail": 120
+    },
+    "outcomes": {
+      "success": "Ocorrência controlada.",
+      "worsen": "A situação piorou e o risco aumentou.",
+      "fail": "Ocorrência evoluiu para consequências graves."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "what"
+      ],
+      "questions": [
         {
-          id: "confirm_intent",
-          label: "Confirmar ocorrência",
-          prompt: "190. Confirme a ocorrência real, por favor. O que está acontecendo?",
-          answer: "(risadas ao fundo) Ah… é brincadeira… (desliga)",
-          effect: { confidenceTrote: +3 }
+          "id": "location",
+          "label": "Endereço",
+          "prompt": "Qual o endereço completo e referência?",
+          "answer": "Rua ... número ... (voz irritada)",
+          "effect": {
+            "severity": "leve"
+          }
+        },
+        {
+          "id": "what",
+          "label": "O que acontece",
+          "prompt": "O que está acontecendo exatamente?",
+          "answer": "Som altíssimo há horas.",
+          "effect": {
+            "severity": "leve"
+          }
+        },
+        {
+          "id": "weapons",
+          "label": "Há armas?",
+          "prompt": "Você viu arma ou ameaça?",
+          "answer": "Não, só barulho.",
+          "effect": {
+            "severity": "leve"
+          }
+        },
+        {
+          "id": "caller_name",
+          "label": "Nome do solicitante",
+          "prompt": "Qual seu nome completo?",
+          "answer": "Agora não dá pra falar! Pelo amor de Deus...",
+          "effect": {
+            "timePenaltySec": 12,
+            "forceWorsen": true
+          }
         }
       ]
     },
-    dispatch: {
-      correctRoles: ["dismiss_only"],
-      allowedRoles: ["area_patrol"]
+    "dispatch": {
+      "correctRoles": [
+        "patrol"
+      ]
     },
-    hint: "Trote: o correto é encerrar. Despachar aqui é desperdício.",
+    "hint": "Coleta endereço e confirma ausência de risco. Despache patrulha de área."
   },
-
   {
-    id: "br_pol_som_alto_01",
-    agency: "police",
-    region: "BR",
-    title: "Perturbação do sossego (som alto)",
-    baseSeverity: "leve",
-    protocol: {
-      required: ["addr", "what_happening"],
-      questions: [
+    "id": "pol_domestic_02",
+    "agency": "police",
+    "region": "BR/US",
+    "title": "Violência doméstica (possível agressão)",
+    "baseSeverity": "grave",
+    "timers": {
+      "worsen": 40,
+      "fail": 90
+    },
+    "outcomes": {
+      "success": "Ocorrência controlada.",
+      "worsen": "A situação piorou e o risco aumentou.",
+      "fail": "Ocorrência evoluiu para consequências graves."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "injuries"
+      ],
+      "questions": [
         {
-          id: "addr",
-          label: "Endereço",
-          prompt: "Qual o endereço completo e um ponto de referência?",
-          answer: "Rua das Acácias, 155. Em frente a uma padaria.",
-          effect: { severity: "leve" }
+          "id": "location",
+          "label": "Endereço",
+          "prompt": "Endereço e referência?",
+          "answer": "Apartamento ... (sussurrando)",
+          "effect": {
+            "severity": "grave"
+          }
         },
         {
-          id: "what_happening",
-          label: "Situação",
-          prompt: "O que está acontecendo exatamente?",
-          answer: "Vizinho com som alto há horas. Não tem briga, só barulho.",
-          effect: { severity: "leve" }
+          "id": "injuries",
+          "label": "Feridos?",
+          "prompt": "Tem alguém ferido agora?",
+          "answer": "Ele me empurrou... tô com dor.",
+          "effect": {
+            "severity": "grave"
+          }
         },
         {
-          id: "danger",
-          label: "Risco/violência",
-          prompt: "Existe ameaça, agressão, arma, ou alguém ferido?",
-          answer: "Não. Só o som mesmo.",
-          effect: { severity: "leve" }
+          "id": "children",
+          "label": "Crianças no local",
+          "prompt": "Há crianças no imóvel?",
+          "answer": "Sim, duas.",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "weapons",
+          "label": "Armas no local",
+          "prompt": "Ele tem arma/faca?",
+          "answer": "Acho que tem uma faca.",
+          "effect": {
+            "severity": "critico"
+          }
+        },
+        {
+          "id": "caller_name",
+          "label": "Nome do solicitante",
+          "prompt": "Qual seu nome completo?",
+          "answer": "Agora não dá pra falar! Pelo amor de Deus...",
+          "effect": {
+            "timePenaltySec": 12,
+            "forceWorsen": true
+          }
         }
       ]
     },
-    dispatch: {
-      correctRoles: ["area_patrol"],
-      allowedRoles: ["area_patrol", "civil_investigation"]
+    "dispatch": {
+      "correctRoles": [
+        "patrol"
+      ]
     },
-    hint: "Caso leve. Foque em endereço e natureza do pedido. Viatura de área.",
+    "hint": "Priorize proteção. Pergunte feridos e presença de armas. Despache patrulha imediatamente."
   },
-
   {
-    id: "br_pol_viol_dom_01",
-    agency: "police",
-    region: "BR",
-    title: "Violência doméstica (gritos e possível agressão)",
-    baseSeverity: "medio",
-    protocol: {
-      required: ["addr", "danger_now"],
-      questions: [
+    "id": "pol_armed_robbery_03",
+    "agency": "police",
+    "region": "BR/US",
+    "title": "Roubo armado em andamento",
+    "baseSeverity": "critico",
+    "timers": {
+      "worsen": 30,
+      "fail": 70
+    },
+    "outcomes": {
+      "success": "Ocorrência controlada.",
+      "worsen": "A situação piorou e o risco aumentou.",
+      "fail": "Ocorrência evoluiu para consequências graves."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "weapon"
+      ],
+      "questions": [
         {
-          id: "addr",
-          label: "Endereço",
-          prompt: "Qual o endereço completo e como a viatura encontra o local?",
-          answer: "Rua do Campo, 77, casa 2. Portão verde.",
-          effect: { severity: "medio" }
+          "id": "location",
+          "label": "Endereço",
+          "prompt": "Onde está acontecendo?",
+          "answer": "Na porta do mercado...",
+          "effect": {
+            "severity": "critico"
+          }
         },
         {
-          id: "danger_now",
-          label: "Risco imediato",
-          prompt: "A agressão está acontecendo agora? Há arma? Há crianças no local?",
-          answer: "Sim, está acontecendo agora. Tem criança chorando. Não vi arma.",
-          effect: { severity: "grave" }
+          "id": "weapon",
+          "label": "Tipo de arma",
+          "prompt": "Ele está com arma de fogo?",
+          "answer": "Sim, revólver!",
+          "effect": {
+            "severity": "critico"
+          }
         },
         {
-          id: "suspect_desc",
-          label: "Suspeito",
-          prompt: "Descreva o agressor: roupa, altura, se bebeu ou está alterado.",
-          answer: "Homem alto, camiseta preta. Está muito alterado.",
-          effect: { severity: "grave" }
+          "id": "hostages",
+          "label": "Reféns",
+          "prompt": "Tem reféns?",
+          "answer": "Tem gente no caixa...",
+          "effect": {
+            "severity": "critico"
+          }
         },
         {
-          id: "safe_place",
-          label: "Segurança do chamador",
-          prompt: "Você está em local seguro? Consegue se afastar e manter a linha?",
-          answer: "Estou trancada no quarto com a criança.",
-          effect: { severity: "grave" }
+          "id": "suspects",
+          "label": "Quantos suspeitos",
+          "prompt": "Quantos são?",
+          "answer": "Acho que dois.",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "caller_name",
+          "label": "Nome do solicitante",
+          "prompt": "Qual seu nome completo?",
+          "answer": "Agora não dá pra falar! Pelo amor de Deus...",
+          "effect": {
+            "timePenaltySec": 12,
+            "forceWorsen": true
+          }
         }
       ]
     },
-    dispatch: {
-      correctRoles: ["area_patrol", "tactical_rota"],
-      allowedRoles: ["area_patrol", "tactical_rota", "shock_riot"]
+    "dispatch": {
+      "correctRoles": [
+        "patrol",
+        "tactical"
+      ]
     },
-    hint: "Pode escalar rápido. Priorize risco imediato e segurança do chamador.",
+    "hint": "Tempo é vida. Colete endereço + arma e despache patrulha; se houver reféns, tático."
   },
-
   {
-    id: "br_pol_roubo_andamento_01",
-    agency: "police",
-    region: "BR",
-    title: "Roubo em andamento (suspeitos armados)",
-    baseSeverity: "grave",
-    protocol: {
-      required: ["addr", "weapons", "suspects"],
-      questions: [
+    "id": "pol_pursuit_04",
+    "agency": "police",
+    "region": "BR/US",
+    "title": "Perseguição / veículo suspeito",
+    "baseSeverity": "medio",
+    "timers": {
+      "worsen": 50,
+      "fail": 110
+    },
+    "outcomes": {
+      "success": "Ocorrência controlada.",
+      "worsen": "A situação piorou e o risco aumentou.",
+      "fail": "Ocorrência evoluiu para consequências graves."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "plate"
+      ],
+      "questions": [
         {
-          id: "addr",
-          label: "Endereço",
-          prompt: "Qual o endereço exato e referência?",
-          answer: "Av. Norte, 1200, perto do posto de gasolina.",
-          effect: { severity: "grave" }
+          "id": "location",
+          "label": "Via / direção",
+          "prompt": "Em que via e sentido?",
+          "answer": "Avenida ... sentido centro.",
+          "effect": {
+            "severity": "medio"
+          }
         },
         {
-          id: "weapons",
-          label: "Armas",
-          prompt: "Eles estão armados? Consegue ver arma de fogo ou faca?",
-          answer: "Sim, vi uma arma na mão de um deles.",
-          effect: { severity: "grave" }
+          "id": "plate",
+          "label": "Placa",
+          "prompt": "Consegue informar a placa?",
+          "answer": "ABC-1D23",
+          "effect": {
+            "severity": "medio"
+          }
         },
         {
-          id: "suspects",
-          label: "Suspeitos",
-          prompt: "Quantos suspeitos e descrição (roupas, direção de fuga)?",
-          answer: "Dois. Um de moletom cinza, outro de boné vermelho. Estão indo para a rua lateral.",
-          effect: { severity: "grave" }
+          "id": "danger",
+          "label": "Colisão/risco",
+          "prompt": "Ele está colocando alguém em risco?",
+          "answer": "Quase bateu em 2 carros!",
+          "effect": {
+            "severity": "grave"
+          }
         },
         {
-          id: "victims",
-          label: "Vítimas",
-          prompt: "Há alguém ferido? Reféns? Alguém em risco imediato?",
-          answer: "Ninguém ferido por enquanto, mas estão ameaçando.",
-          effect: { severity: "grave" }
+          "id": "caller_name",
+          "label": "Nome do solicitante",
+          "prompt": "Qual seu nome completo?",
+          "answer": "Agora não dá pra falar! Pelo amor de Deus...",
+          "effect": {
+            "timePenaltySec": 12,
+            "forceWorsen": true
+          }
         }
       ]
     },
-    dispatch: {
-      correctRoles: ["tactical_rota", "air_eagle", "area_patrol"],
-      allowedRoles: ["tactical_rota", "air_eagle", "area_patrol", "shock_riot"]
+    "dispatch": {
+      "correctRoles": [
+        "traffic",
+        "patrol"
+      ]
     },
-    hint: "Grave. Tático + apoio aéreo se disponível. Não mande só viatura comum.",
+    "hint": "Trânsito/rodoviária é mais eficiente, mas patrulha também serve."
   },
-
   {
-    id: "br_pol_bomba_suspeita_01",
-    agency: "police",
-    region: "BR",
-    title: "Objeto suspeito com possível artefato",
-    baseSeverity: "grave",
-    protocol: {
-      required: ["addr", "object_desc", "crowd"],
-      questions: [
+    "id": "pol_missing_child_05",
+    "agency": "police",
+    "region": "BR/US",
+    "title": "Criança desaparecida (última vez vista agora)",
+    "baseSeverity": "grave",
+    "timers": {
+      "worsen": 60,
+      "fail": 140
+    },
+    "outcomes": {
+      "success": "Ocorrência controlada.",
+      "worsen": "A situação piorou e o risco aumentou.",
+      "fail": "Ocorrência evoluiu para consequências graves."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "desc"
+      ],
+      "questions": [
         {
-          id: "addr",
-          label: "Endereço",
-          prompt: "Onde está o objeto suspeito?",
-          answer: "Na calçada do metrô, entrada principal.",
-          effect: { severity: "grave" }
+          "id": "location",
+          "label": "Local",
+          "prompt": "Onde você está agora?",
+          "answer": "Parque ...",
+          "effect": {
+            "severity": "grave"
+          }
         },
         {
-          id: "object_desc",
-          label: "Descrição",
-          prompt: "Como é o objeto? Mochila, caixa, fios visíveis? Está fazendo barulho?",
-          answer: "É uma mochila abandonada. Não vi fios, mas ninguém mexe.",
-          effect: { severity: "grave" }
+          "id": "desc",
+          "label": "Descrição",
+          "prompt": "Idade/roupa/características?",
+          "answer": "7 anos, camiseta azul...",
+          "effect": {
+            "severity": "grave"
+          }
         },
         {
-          id: "crowd",
-          label: "Pessoas no local",
-          prompt: "Tem muita gente perto? Dá para isolar e afastar as pessoas?",
-          answer: "Tem bastante gente. Segurança tentando afastar.",
-          effect: { severity: "grave" }
+          "id": "time",
+          "label": "Há quanto tempo",
+          "prompt": "Há quanto tempo sumiu?",
+          "answer": "5 minutos!",
+          "effect": {
+            "severity": "grave"
+          }
         },
         {
-          id: "advice",
-          label: "Orientação",
-          prompt: "Oriente: ninguém deve tocar no objeto e mantenha distância. Confirma?",
-          answer: "Ok, vou avisar e afastar mais.",
-          effect: { severity: "grave" }
+          "id": "caller_name",
+          "label": "Nome do solicitante",
+          "prompt": "Qual seu nome completo?",
+          "answer": "Agora não dá pra falar! Pelo amor de Deus...",
+          "effect": {
+            "timePenaltySec": 12,
+            "forceWorsen": true
+          }
         }
       ]
     },
-    dispatch: {
-      correctRoles: ["bomb_gate", "area_patrol"],
-      allowedRoles: ["bomb_gate", "area_patrol", "tactical_rota"]
+    "dispatch": {
+      "correctRoles": [
+        "investigation",
+        "patrol"
+      ]
     },
-    hint: "GATE/antibomba é essencial. Viatura para isolar e controlar perímetro.",
+    "hint": "Tempo crítico. Coleta descrição e local e aciona patrulha + investigação."
   },
-
-  // =========================
-  // BR - BOMBEIROS (193)
-  // =========================
   {
-    id: "br_fire_incendio_apto_01",
-    agency: "fire",
-    region: "BR",
-    title: "Incêndio em apartamento (fumaça densa)",
-    baseSeverity: "grave",
-    protocol: {
-      required: ["addr", "people_inside", "smoke_fire"],
-      questions: [
+    "id": "pol_trote_06",
+    "agency": "police",
+    "region": "BR/US",
+    "title": "Trote / chamada indevida",
+    "baseSeverity": "trote",
+    "timers": {
+      "worsen": 80,
+      "fail": 160
+    },
+    "outcomes": {
+      "success": "Ocorrência controlada.",
+      "worsen": "A situação piorou e o risco aumentou.",
+      "fail": "Ocorrência evoluiu para consequências graves."
+    },
+    "protocol": {
+      "required": [
+        "confirm"
+      ],
+      "questions": [
         {
-          id: "addr",
-          label: "Endereço",
-          prompt: "Qual o endereço completo e andar/apartamento?",
-          answer: "Rua Central, 500, bloco B, 8º andar, ap 82.",
-          effect: { severity: "grave" }
+          "id": "confirm",
+          "label": "Confirmar ocorrência",
+          "prompt": "Confirme a ocorrência real, por favor.",
+          "answer": "(risadas) É brincadeira…",
+          "effect": {
+            "confidenceTrote": 4
+          }
         },
         {
-          id: "smoke_fire",
-          label: "Fogo/Fumaça",
-          prompt: "Há fogo visível ou só fumaça? De onde vem?",
-          answer: "Tem fumaça muito forte e chama na cozinha.",
-          effect: { severity: "grave" }
-        },
-        {
-          id: "people_inside",
-          label: "Vítimas",
-          prompt: "Tem gente presa no local? Alguém inalou fumaça?",
-          answer: "Minha mãe está no quarto. Ela tosse muito.",
-          effect: { severity: "grave" }
-        },
-        {
-          id: "evac",
-          label: "Orientação",
-          prompt: "Evacue se possível. Se houver fumaça no corredor, feche portas e use pano úmido. Consegue fazer isso?",
-          answer: "Vou tentar fechar a porta e ficar na janela.",
-          effect: { severity: "grave" }
+          "id": "callback",
+          "label": "Número para retorno",
+          "prompt": "Qual seu número para retorno?",
+          "answer": "...",
+          "effect": {
+            "confidenceTrote": 2,
+            "timePenaltySec": 6
+          }
         }
       ]
     },
-    dispatch: {
-      correctRoles: ["fire_engine", "fire_rescue", "medic_ambulance"],
-      allowedRoles: ["fire_engine", "fire_rescue", "medic_ambulance", "ladder_truck"]
+    "dispatch": {
+      "correctRoles": [
+        "dismiss_only"
+      ]
     },
-    hint: "Incêndio em prédio: AB + Resgate + Ambulância. Escada pode ajudar.",
+    "hint": "Trote: o correto é encerrar. Despachar aqui é desperdício."
   },
-
   {
-    id: "br_fire_acidente_ferragens_01",
-    agency: "fire",
-    region: "BR",
-    title: "Acidente com vítima presa nas ferragens",
-    baseSeverity: "grave",
-    protocol: {
-      required: ["addr", "trapped", "bleeding"],
-      questions: [
+    "id": "pol_burglary_01",
+    "agency": "police",
+    "region": "GLOBAL",
+    "title": "Invasão / arrombamento suspeito",
+    "baseSeverity": "medio",
+    "timers": {
+      "worsen": 55,
+      "fail": 120
+    },
+    "outcomes": {
+      "success": "Ocorrência atendida com sucesso.",
+      "worsen": "Risco aumentou.",
+      "fail": "Falha operacional com consequências."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "entry"
+      ],
+      "questions": [
         {
-          id: "addr",
-          label: "Localização",
-          prompt: "Onde ocorreu o acidente? Qual via e sentido?",
-          answer: "Marginal, próximo à ponte. Sentido centro.",
-          effect: { severity: "grave" }
+          "id": "location",
+          "label": "Endereço",
+          "prompt": "Qual o endereço?",
+          "answer": "Casa ...",
+          "effect": {
+            "severity": "medio"
+          }
         },
         {
-          id: "trapped",
-          label: "Vítima presa",
-          prompt: "Tem alguém preso dentro do veículo? Porta travada? Consciência?",
-          answer: "Sim, motorista preso. Está consciente, mas não consegue sair.",
-          effect: { severity: "grave" }
+          "id": "entry",
+          "label": "Sinais de entrada",
+          "prompt": "Viu porta/janela arrombada?",
+          "answer": "Sim, porta forçada.",
+          "effect": {
+            "severity": "grave"
+          }
         },
         {
-          id: "bleeding",
-          label: "Sangramento",
-          prompt: "Há sangramento forte? Consegue comprimir com pano limpo sem mover a vítima?",
-          answer: "Tem sangue no braço. Estou pressionando com uma camiseta.",
-          effect: { severity: "grave" }
+          "id": "suspect",
+          "label": "Suspeito no local",
+          "prompt": "Você vê alguém?",
+          "answer": "Não vejo, mas ouvi barulho.",
+          "effect": {
+            "severity": "grave"
+          }
         },
         {
-          id: "hazard",
-          label: "Risco",
-          prompt: "Há vazamento de combustível ou risco de incêndio?",
-          answer: "Cheiro forte, parece vazando.",
-          effect: { severity: "grave" }
+          "id": "caller_name",
+          "label": "Nome do solicitante",
+          "prompt": "Qual seu nome completo?",
+          "answer": "Agora não dá pra falar! Pelo amor de Deus...",
+          "effect": {
+            "timePenaltySec": 12,
+            "forceWorsen": true
+          }
         }
       ]
     },
-    dispatch: {
-      correctRoles: ["fire_rescue", "medic_ambulance", "fire_engine"],
-      allowedRoles: ["fire_rescue", "medic_ambulance", "fire_engine", "hazmat"]
+    "dispatch": {
+      "correctRoles": [
+        "patrol"
+      ]
     },
-    hint: "Resgate + Ambulância. AB para segurança (vazamento).",
+    "hint": "Colete endereço e sinais de invasão. Despache patrulha."
   },
-
   {
-    id: "br_fire_parto_01",
-    agency: "fire",
-    region: "BR",
-    title: "Parto em andamento (contrações e coroando)",
-    baseSeverity: "grave",
-    protocol: {
-      required: ["addr", "weeks", "crowning"],
-      questions: [
+    "id": "pol_traffic_accident_02",
+    "agency": "police",
+    "region": "GLOBAL",
+    "title": "Acidente de trânsito com vítimas",
+    "baseSeverity": "grave",
+    "timers": {
+      "worsen": 40,
+      "fail": 95
+    },
+    "outcomes": {
+      "success": "Ocorrência atendida com sucesso.",
+      "worsen": "Risco aumentou.",
+      "fail": "Falha operacional com consequências."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "victims"
+      ],
+      "questions": [
         {
-          id: "addr",
-          label: "Endereço",
-          prompt: "Qual o endereço completo? Quem pode abrir a porta para o resgate?",
-          answer: "Rua Aurora, 90. Meu irmão vai abrir.",
-          effect: { severity: "grave" }
+          "id": "location",
+          "label": "Local",
+          "prompt": "Onde ocorreu?",
+          "answer": "Rodovia ... km ...",
+          "effect": {
+            "severity": "grave"
+          }
         },
         {
-          id: "weeks",
-          label: "Tempo gestação",
-          prompt: "Quantas semanas? Alguma complicação conhecida?",
-          answer: "39 semanas. Sem complicações.",
-          effect: { severity: "grave" }
+          "id": "victims",
+          "label": "Número de vítimas",
+          "prompt": "Quantos feridos?",
+          "answer": "Dois no chão.",
+          "effect": {
+            "severity": "grave"
+          }
         },
         {
-          id: "crowning",
-          label: "Coroando",
-          prompt: "A cabeça do bebê já aparece? As contrações estão muito próximas?",
-          answer: "Sim, está aparecendo. Muito rápido!",
-          effect: { severity: "grave" }
+          "id": "hazard",
+          "label": "Risco de incêndio",
+          "prompt": "Há vazamento/fumaça?",
+          "answer": "Sim, vazando combustível!",
+          "effect": {
+            "severity": "critico"
+          }
         },
         {
-          id: "guidance",
-          label: "Orientação",
-          prompt: "Oriente: local limpo, panos, não puxar o bebê. Confirma?",
-          answer: "Ok, estou com toalhas e vou seguir.",
-          effect: { severity: "grave" }
+          "id": "caller_name",
+          "label": "Nome do solicitante",
+          "prompt": "Qual seu nome completo?",
+          "answer": "Agora não dá pra falar! Pelo amor de Deus...",
+          "effect": {
+            "timePenaltySec": 12,
+            "forceWorsen": true
+          }
         }
       ]
     },
-    dispatch: {
-      correctRoles: ["medic_ambulance", "fire_rescue"],
-      allowedRoles: ["medic_ambulance", "fire_rescue", "fire_engine"]
+    "dispatch": {
+      "correctRoles": [
+        "traffic",
+        "patrol"
+      ]
     },
-    hint: "Parto: Ambulância + apoio de resgate. Instrução pré-chegada é essencial.",
+    "hint": "Se houver vazamento, trate como crítico e acione suporte adequado (na Etapa 3 entra EMS/Fire)."
   },
-
-  // =========================
-  // US - 911 (POLICE / FIRE)
-  // =========================
   {
-    id: "us_pol_active_threat_01",
-    agency: "police",
-    region: "US",
-    title: "Active threat (shots heard nearby)",
-    baseSeverity: "grave",
-    protocol: {
-      required: ["addr", "shots_confirmed", "suspects"],
-      questions: [
+    "id": "fire_apartment_fire_01",
+    "agency": "fire",
+    "region": "BR/US",
+    "title": "Incêndio em apartamento",
+    "baseSeverity": "critico",
+    "timers": {
+      "worsen": 35,
+      "fail": 80
+    },
+    "outcomes": {
+      "success": "Situação controlada.",
+      "worsen": "A condição se agravou.",
+      "fail": "Falha crítica com vítimas/risco elevado."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "victims"
+      ],
+      "questions": [
         {
-          id: "addr",
-          label: "Address",
-          prompt: "What is the exact address and cross street?",
-          answer: "12 Maple Ave, near the gas station.",
-          effect: { severity: "grave" }
+          "id": "location",
+          "label": "Endereço",
+          "prompt": "Qual o endereço?",
+          "answer": "Prédio ... apto ...",
+          "effect": {
+            "severity": "critico"
+          }
         },
         {
-          id: "shots_confirmed",
-          label: "Shots",
-          prompt: "Did you hear gunshots? How many? Any injuries seen?",
-          answer: "Yes, multiple shots. I can't see injuries.",
-          effect: { severity: "grave" }
+          "id": "victims",
+          "label": "Vítimas presas",
+          "prompt": "Tem alguém preso?",
+          "answer": "Meu filho tá no quarto!",
+          "effect": {
+            "severity": "critico"
+          }
         },
         {
-          id: "suspects",
-          label: "Suspect",
-          prompt: "Any description of the suspect(s) or vehicle?",
-          answer: "Dark hoodie, running toward the alley.",
-          effect: { severity: "grave" }
+          "id": "smoke",
+          "label": "Fumaça densa",
+          "prompt": "Tem muita fumaça?",
+          "answer": "Sim, não dá pra respirar.",
+          "effect": {
+            "severity": "critico"
+          }
+        },
+        {
+          "id": "caller_name",
+          "label": "Nome do solicitante",
+          "prompt": "Qual seu nome completo?",
+          "answer": "Agora não dá pra falar! Pelo amor de Deus...",
+          "effect": {
+            "timePenaltySec": 12,
+            "forceWorsen": true
+          }
         }
       ]
     },
-    dispatch: {
-      correctRoles: ["tactical_rota", "air_eagle", "area_patrol"],
-      allowedRoles: ["tactical_rota", "air_eagle", "area_patrol", "civil_investigation"]
+    "dispatch": {
+      "correctRoles": [
+        "fire_engine",
+        "rescue"
+      ]
     },
-    hint: "High risk. SWAT/air support if available + patrol.",
+    "hint": "Incêndio com risco de vidas. Despache viatura de combate + resgate."
   },
-
   {
-    id: "us_fire_choking_01",
-    agency: "fire",
-    region: "US",
-    title: "Choking (cannot breathe)",
-    baseSeverity: "grave",
-    protocol: {
-      required: ["addr", "breathing_status"],
-      questions: [
+    "id": "fire_gas_leak_02",
+    "agency": "fire",
+    "region": "BR/US",
+    "title": "Vazamento de gás (odor forte)",
+    "baseSeverity": "grave",
+    "timers": {
+      "worsen": 45,
+      "fail": 105
+    },
+    "outcomes": {
+      "success": "Situação controlada.",
+      "worsen": "A condição se agravou.",
+      "fail": "Falha crítica com vítimas/risco elevado."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "source"
+      ],
+      "questions": [
         {
-          id: "addr",
-          label: "Address",
-          prompt: "What is the exact address and unit number?",
-          answer: "52 Pine Street, apartment 3B.",
-          effect: { severity: "grave" }
+          "id": "location",
+          "label": "Local",
+          "prompt": "Endereço?",
+          "answer": "Cozinha da casa ...",
+          "effect": {
+            "severity": "grave"
+          }
         },
         {
-          id: "breathing_status",
-          label: "Breathing",
-          prompt: "Is he able to cough or speak, or completely unable to breathe?",
-          answer: "He can't speak or cough. He's grabbing his throat.",
-          effect: { severity: "grave" }
+          "id": "source",
+          "label": "Fonte",
+          "prompt": "É botijão/encanamento?",
+          "answer": "Botijão.",
+          "effect": {
+            "severity": "grave"
+          }
         },
         {
-          id: "conscious",
-          label: "Conscious",
-          prompt: "Is he conscious right now?",
-          answer: "Yes, but panicking.",
-          effect: { severity: "grave" }
+          "id": "ignition",
+          "label": "Chamas/centelha",
+          "prompt": "Tem fogo ou faísca?",
+          "answer": "Não, mas tem gente ligando luz.",
+          "effect": {
+            "severity": "critico"
+          }
         },
         {
-          id: "first_aid",
-          label: "First-aid",
-          prompt: "Start abdominal thrusts (Heimlich). Are you able to do that now?",
-          answer: "Yes, I'm doing it!",
-          effect: { severity: "grave" }
+          "id": "caller_name",
+          "label": "Nome do solicitante",
+          "prompt": "Qual seu nome completo?",
+          "answer": "Agora não dá pra falar! Pelo amor de Deus...",
+          "effect": {
+            "timePenaltySec": 12,
+            "forceWorsen": true
+          }
         }
       ]
     },
-    dispatch: {
-      correctRoles: ["medic_ambulance", "fire_rescue"],
-      allowedRoles: ["medic_ambulance", "fire_rescue", "fire_engine"]
+    "dispatch": {
+      "correctRoles": [
+        "hazmat",
+        "fire_engine"
+      ]
     },
-    hint: "Medical emergency. Ambulance + rescue. Provide instructions fast.",
+    "hint": "Oriente evacuação e não acender luz. Despache unidade adequada."
+  },
+  {
+    "id": "fire_elevator_03",
+    "agency": "fire",
+    "region": "BR/US",
+    "title": "Pessoa presa em elevador",
+    "baseSeverity": "medio",
+    "timers": {
+      "worsen": 70,
+      "fail": 160
+    },
+    "outcomes": {
+      "success": "Situação controlada.",
+      "worsen": "A condição se agravou.",
+      "fail": "Falha crítica com vítimas/risco elevado."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "count"
+      ],
+      "questions": [
+        {
+          "id": "location",
+          "label": "Prédio",
+          "prompt": "Qual o prédio/endereço?",
+          "answer": "Centro ...",
+          "effect": {
+            "severity": "medio"
+          }
+        },
+        {
+          "id": "count",
+          "label": "Quantas pessoas",
+          "prompt": "Quantas presas?",
+          "answer": "Duas.",
+          "effect": {
+            "severity": "medio"
+          }
+        },
+        {
+          "id": "medical",
+          "label": "Mal-estar",
+          "prompt": "Alguém passando mal?",
+          "answer": "Uma tá com falta de ar.",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "caller_name",
+          "label": "Nome do solicitante",
+          "prompt": "Qual seu nome completo?",
+          "answer": "Agora não dá pra falar! Pelo amor de Deus...",
+          "effect": {
+            "timePenaltySec": 12,
+            "forceWorsen": true
+          }
+        }
+      ]
+    },
+    "dispatch": {
+      "correctRoles": [
+        "rescue"
+      ]
+    },
+    "hint": "Resgate técnico. Se houver mal-estar, trate como mais grave."
+  },
+  {
+    "id": "fire_trote_04",
+    "agency": "fire",
+    "region": "BR/US",
+    "title": "Trote (falso incêndio)",
+    "baseSeverity": "trote",
+    "timers": {
+      "worsen": 80,
+      "fail": 180
+    },
+    "outcomes": {
+      "success": "Situação controlada.",
+      "worsen": "A condição se agravou.",
+      "fail": "Falha crítica com vítimas/risco elevado."
+    },
+    "protocol": {
+      "required": [
+        "confirm"
+      ],
+      "questions": [
+        {
+          "id": "confirm",
+          "label": "Confirmar",
+          "prompt": "Você vê fogo/fumaça agora?",
+          "answer": "Não… é brincadeira…",
+          "effect": {
+            "confidenceTrote": 4
+          }
+        },
+        {
+          "id": "location",
+          "label": "Endereço",
+          "prompt": "Qual o endereço?",
+          "answer": "...",
+          "effect": {
+            "confidenceTrote": 1,
+            "timePenaltySec": 8
+          }
+        }
+      ]
+    },
+    "dispatch": {
+      "correctRoles": [
+        "dismiss_only"
+      ]
+    },
+    "hint": "Trote: encerre. Não desperdice recursos."
+  },
+  {
+    "id": "fire_vehicle_fire_01",
+    "agency": "fire",
+    "region": "GLOBAL",
+    "title": "Incêndio em veículo",
+    "baseSeverity": "grave",
+    "timers": {
+      "worsen": 45,
+      "fail": 100
+    },
+    "outcomes": {
+      "success": "Resgate concluído.",
+      "worsen": "Risco aumentou.",
+      "fail": "Perda de controle / vítimas."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "people"
+      ],
+      "questions": [
+        {
+          "id": "location",
+          "label": "Local",
+          "prompt": "Onde está o veículo?",
+          "answer": "Posto de gasolina!",
+          "effect": {
+            "severity": "critico"
+          }
+        },
+        {
+          "id": "people",
+          "label": "Pessoas próximas",
+          "prompt": "Tem gente perto?",
+          "answer": "Sim, muita.",
+          "effect": {
+            "severity": "critico"
+          }
+        },
+        {
+          "id": "fuel",
+          "label": "Combustível vazando",
+          "prompt": "Há vazamento?",
+          "answer": "Sim.",
+          "effect": {
+            "severity": "critico"
+          }
+        },
+        {
+          "id": "caller_name",
+          "label": "Nome do solicitante",
+          "prompt": "Qual seu nome completo?",
+          "answer": "Agora não dá pra falar! Pelo amor de Deus...",
+          "effect": {
+            "timePenaltySec": 12,
+            "forceWorsen": true
+          }
+        }
+      ]
+    },
+    "dispatch": {
+      "correctRoles": [
+        "fire_engine"
+      ]
+    },
+    "hint": "Risco de explosão. Priorize rápido."
+  },
+  {
+    "id": "fire_flood_02",
+    "agency": "fire",
+    "region": "GLOBAL",
+    "title": "Alagamento / resgate em enchente",
+    "baseSeverity": "grave",
+    "timers": {
+      "worsen": 60,
+      "fail": 130
+    },
+    "outcomes": {
+      "success": "Resgate concluído.",
+      "worsen": "Risco aumentou.",
+      "fail": "Perda de controle / vítimas."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "trapped"
+      ],
+      "questions": [
+        {
+          "id": "location",
+          "label": "Endereço",
+          "prompt": "Onde?",
+          "answer": "Rua ...",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "trapped",
+          "label": "Pessoas ilhadas",
+          "prompt": "Quantas?",
+          "answer": "Três no telhado.",
+          "effect": {
+            "severity": "critico"
+          }
+        },
+        {
+          "id": "water",
+          "label": "Nível da água",
+          "prompt": "Até onde subiu?",
+          "answer": "Acima do joelho.",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "caller_name",
+          "label": "Nome do solicitante",
+          "prompt": "Qual seu nome completo?",
+          "answer": "Agora não dá pra falar! Pelo amor de Deus...",
+          "effect": {
+            "timePenaltySec": 12,
+            "forceWorsen": true
+          }
+        }
+      ]
+    },
+    "dispatch": {
+      "correctRoles": [
+        "rescue"
+      ]
+    },
+    "hint": "Resgate técnico. Tempo e água subindo."
+  },
+  {
+    "id": "pol_som_alto_01_v14",
+    "agency": "police",
+    "region": "BR/US",
+    "title": "Perturbação do sossego (som alto) (variação)",
+    "baseSeverity": "leve",
+    "timers": {
+      "worsen": 55,
+      "fail": 120
+    },
+    "outcomes": {
+      "success": "Ocorrência controlada.",
+      "worsen": "A situação piorou e o risco aumentou.",
+      "fail": "Ocorrência evoluiu para consequências graves."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "what"
+      ],
+      "questions": [
+        {
+          "id": "location",
+          "label": "Endereço",
+          "prompt": "Qual o endereço completo e referência?",
+          "answer": "Rua ... número ... (voz irritada)",
+          "effect": {
+            "severity": "leve"
+          }
+        },
+        {
+          "id": "what",
+          "label": "O que acontece",
+          "prompt": "O que está acontecendo exatamente?",
+          "answer": "Som altíssimo há horas.",
+          "effect": {
+            "severity": "leve"
+          }
+        },
+        {
+          "id": "weapons",
+          "label": "Há armas?",
+          "prompt": "Você viu arma ou ameaça?",
+          "answer": "Não, só barulho.",
+          "effect": {
+            "severity": "leve"
+          }
+        },
+        {
+          "id": "caller_name",
+          "label": "Nome do solicitante",
+          "prompt": "Qual seu nome completo?",
+          "answer": "Agora não dá pra falar! Pelo amor de Deus...",
+          "effect": {
+            "timePenaltySec": 12,
+            "forceWorsen": true
+          }
+        }
+      ]
+    },
+    "dispatch": {
+      "correctRoles": [
+        "patrol"
+      ]
+    },
+    "hint": "Coleta endereço e confirma ausência de risco. Despache patrulha de área."
+  },
+  {
+    "id": "pol_domestic_02_v15",
+    "agency": "police",
+    "region": "BR/US",
+    "title": "Violência doméstica (possível agressão) (variação)",
+    "baseSeverity": "grave",
+    "timers": {
+      "worsen": 40,
+      "fail": 90
+    },
+    "outcomes": {
+      "success": "Ocorrência controlada.",
+      "worsen": "A situação piorou e o risco aumentou.",
+      "fail": "Ocorrência evoluiu para consequências graves."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "injuries"
+      ],
+      "questions": [
+        {
+          "id": "location",
+          "label": "Endereço",
+          "prompt": "Endereço e referência?",
+          "answer": "Apartamento ... (sussurrando)",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "injuries",
+          "label": "Feridos?",
+          "prompt": "Tem alguém ferido agora?",
+          "answer": "Ele me empurrou... tô com dor.",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "children",
+          "label": "Crianças no local",
+          "prompt": "Há crianças no imóvel?",
+          "answer": "Sim, duas.",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "weapons",
+          "label": "Armas no local",
+          "prompt": "Ele tem arma/faca?",
+          "answer": "Acho que tem uma faca.",
+          "effect": {
+            "severity": "critico"
+          }
+        },
+        {
+          "id": "caller_name",
+          "label": "Nome do solicitante",
+          "prompt": "Qual seu nome completo?",
+          "answer": "Agora não dá pra falar! Pelo amor de Deus...",
+          "effect": {
+            "timePenaltySec": 12,
+            "forceWorsen": true
+          }
+        }
+      ]
+    },
+    "dispatch": {
+      "correctRoles": [
+        "patrol"
+      ]
+    },
+    "hint": "Priorize proteção. Pergunte feridos e presença de armas. Despache patrulha imediatamente."
+  },
+  {
+    "id": "pol_armed_robbery_03_v16",
+    "agency": "police",
+    "region": "BR/US",
+    "title": "Roubo armado em andamento (variação)",
+    "baseSeverity": "critico",
+    "timers": {
+      "worsen": 30,
+      "fail": 70
+    },
+    "outcomes": {
+      "success": "Ocorrência controlada.",
+      "worsen": "A situação piorou e o risco aumentou.",
+      "fail": "Ocorrência evoluiu para consequências graves."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "weapon"
+      ],
+      "questions": [
+        {
+          "id": "location",
+          "label": "Endereço",
+          "prompt": "Onde está acontecendo?",
+          "answer": "Na porta do mercado...",
+          "effect": {
+            "severity": "critico"
+          }
+        },
+        {
+          "id": "weapon",
+          "label": "Tipo de arma",
+          "prompt": "Ele está com arma de fogo?",
+          "answer": "Sim, revólver!",
+          "effect": {
+            "severity": "critico"
+          }
+        },
+        {
+          "id": "hostages",
+          "label": "Reféns",
+          "prompt": "Tem reféns?",
+          "answer": "Tem gente no caixa...",
+          "effect": {
+            "severity": "critico"
+          }
+        },
+        {
+          "id": "suspects",
+          "label": "Quantos suspeitos",
+          "prompt": "Quantos são?",
+          "answer": "Acho que dois.",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "caller_name",
+          "label": "Nome do solicitante",
+          "prompt": "Qual seu nome completo?",
+          "answer": "Agora não dá pra falar! Pelo amor de Deus...",
+          "effect": {
+            "timePenaltySec": 12,
+            "forceWorsen": true
+          }
+        }
+      ]
+    },
+    "dispatch": {
+      "correctRoles": [
+        "patrol",
+        "tactical"
+      ]
+    },
+    "hint": "Tempo é vida. Colete endereço + arma e despache patrulha; se houver reféns, tático."
+  },
+  {
+    "id": "pol_pursuit_04_v17",
+    "agency": "police",
+    "region": "BR/US",
+    "title": "Perseguição / veículo suspeito (variação)",
+    "baseSeverity": "medio",
+    "timers": {
+      "worsen": 50,
+      "fail": 110
+    },
+    "outcomes": {
+      "success": "Ocorrência controlada.",
+      "worsen": "A situação piorou e o risco aumentou.",
+      "fail": "Ocorrência evoluiu para consequências graves."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "plate"
+      ],
+      "questions": [
+        {
+          "id": "location",
+          "label": "Via / direção",
+          "prompt": "Em que via e sentido?",
+          "answer": "Avenida ... sentido centro.",
+          "effect": {
+            "severity": "medio"
+          }
+        },
+        {
+          "id": "plate",
+          "label": "Placa",
+          "prompt": "Consegue informar a placa?",
+          "answer": "ABC-1D23",
+          "effect": {
+            "severity": "medio"
+          }
+        },
+        {
+          "id": "danger",
+          "label": "Colisão/risco",
+          "prompt": "Ele está colocando alguém em risco?",
+          "answer": "Quase bateu em 2 carros!",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "caller_name",
+          "label": "Nome do solicitante",
+          "prompt": "Qual seu nome completo?",
+          "answer": "Agora não dá pra falar! Pelo amor de Deus...",
+          "effect": {
+            "timePenaltySec": 12,
+            "forceWorsen": true
+          }
+        }
+      ]
+    },
+    "dispatch": {
+      "correctRoles": [
+        "traffic",
+        "patrol"
+      ]
+    },
+    "hint": "Trânsito/rodoviária é mais eficiente, mas patrulha também serve."
+  },
+  {
+    "id": "pol_missing_child_05_v18",
+    "agency": "police",
+    "region": "BR/US",
+    "title": "Criança desaparecida (última vez vista agora) (variação)",
+    "baseSeverity": "grave",
+    "timers": {
+      "worsen": 60,
+      "fail": 140
+    },
+    "outcomes": {
+      "success": "Ocorrência controlada.",
+      "worsen": "A situação piorou e o risco aumentou.",
+      "fail": "Ocorrência evoluiu para consequências graves."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "desc"
+      ],
+      "questions": [
+        {
+          "id": "location",
+          "label": "Local",
+          "prompt": "Onde você está agora?",
+          "answer": "Parque ...",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "desc",
+          "label": "Descrição",
+          "prompt": "Idade/roupa/características?",
+          "answer": "7 anos, camiseta azul...",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "time",
+          "label": "Há quanto tempo",
+          "prompt": "Há quanto tempo sumiu?",
+          "answer": "5 minutos!",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "caller_name",
+          "label": "Nome do solicitante",
+          "prompt": "Qual seu nome completo?",
+          "answer": "Agora não dá pra falar! Pelo amor de Deus...",
+          "effect": {
+            "timePenaltySec": 12,
+            "forceWorsen": true
+          }
+        }
+      ]
+    },
+    "dispatch": {
+      "correctRoles": [
+        "investigation",
+        "patrol"
+      ]
+    },
+    "hint": "Tempo crítico. Coleta descrição e local e aciona patrulha + investigação."
+  },
+  {
+    "id": "pol_trote_06_v19",
+    "agency": "police",
+    "region": "BR/US",
+    "title": "Trote / chamada indevida (variação)",
+    "baseSeverity": "trote",
+    "timers": {
+      "worsen": 80,
+      "fail": 160
+    },
+    "outcomes": {
+      "success": "Ocorrência controlada.",
+      "worsen": "A situação piorou e o risco aumentou.",
+      "fail": "Ocorrência evoluiu para consequências graves."
+    },
+    "protocol": {
+      "required": [
+        "confirm"
+      ],
+      "questions": [
+        {
+          "id": "confirm",
+          "label": "Confirmar ocorrência",
+          "prompt": "Confirme a ocorrência real, por favor.",
+          "answer": "(risadas) É brincadeira…",
+          "effect": {
+            "confidenceTrote": 4
+          }
+        },
+        {
+          "id": "callback",
+          "label": "Número para retorno",
+          "prompt": "Qual seu número para retorno?",
+          "answer": "...",
+          "effect": {
+            "confidenceTrote": 2,
+            "timePenaltySec": 6
+          }
+        }
+      ]
+    },
+    "dispatch": {
+      "correctRoles": [
+        "dismiss_only"
+      ]
+    },
+    "hint": "Trote: o correto é encerrar. Despachar aqui é desperdício."
+  },
+  {
+    "id": "pol_burglary_01_v20",
+    "agency": "police",
+    "region": "GLOBAL",
+    "title": "Invasão / arrombamento suspeito (variação)",
+    "baseSeverity": "medio",
+    "timers": {
+      "worsen": 55,
+      "fail": 120
+    },
+    "outcomes": {
+      "success": "Ocorrência atendida com sucesso.",
+      "worsen": "Risco aumentou.",
+      "fail": "Falha operacional com consequências."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "entry"
+      ],
+      "questions": [
+        {
+          "id": "location",
+          "label": "Endereço",
+          "prompt": "Qual o endereço?",
+          "answer": "Casa ...",
+          "effect": {
+            "severity": "medio"
+          }
+        },
+        {
+          "id": "entry",
+          "label": "Sinais de entrada",
+          "prompt": "Viu porta/janela arrombada?",
+          "answer": "Sim, porta forçada.",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "suspect",
+          "label": "Suspeito no local",
+          "prompt": "Você vê alguém?",
+          "answer": "Não vejo, mas ouvi barulho.",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "caller_name",
+          "label": "Nome do solicitante",
+          "prompt": "Qual seu nome completo?",
+          "answer": "Agora não dá pra falar! Pelo amor de Deus...",
+          "effect": {
+            "timePenaltySec": 12,
+            "forceWorsen": true
+          }
+        }
+      ]
+    },
+    "dispatch": {
+      "correctRoles": [
+        "patrol"
+      ]
+    },
+    "hint": "Colete endereço e sinais de invasão. Despache patrulha."
+  },
+  {
+    "id": "pol_traffic_accident_02_v21",
+    "agency": "police",
+    "region": "GLOBAL",
+    "title": "Acidente de trânsito com vítimas (variação)",
+    "baseSeverity": "grave",
+    "timers": {
+      "worsen": 40,
+      "fail": 95
+    },
+    "outcomes": {
+      "success": "Ocorrência atendida com sucesso.",
+      "worsen": "Risco aumentou.",
+      "fail": "Falha operacional com consequências."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "victims"
+      ],
+      "questions": [
+        {
+          "id": "location",
+          "label": "Local",
+          "prompt": "Onde ocorreu?",
+          "answer": "Rodovia ... km ...",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "victims",
+          "label": "Número de vítimas",
+          "prompt": "Quantos feridos?",
+          "answer": "Dois no chão.",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "hazard",
+          "label": "Risco de incêndio",
+          "prompt": "Há vazamento/fumaça?",
+          "answer": "Sim, vazando combustível!",
+          "effect": {
+            "severity": "critico"
+          }
+        },
+        {
+          "id": "caller_name",
+          "label": "Nome do solicitante",
+          "prompt": "Qual seu nome completo?",
+          "answer": "Agora não dá pra falar! Pelo amor de Deus...",
+          "effect": {
+            "timePenaltySec": 12,
+            "forceWorsen": true
+          }
+        }
+      ]
+    },
+    "dispatch": {
+      "correctRoles": [
+        "traffic",
+        "patrol"
+      ]
+    },
+    "hint": "Se houver vazamento, trate como crítico e acione suporte adequado (na Etapa 3 entra EMS/Fire)."
+  },
+  {
+    "id": "fire_apartment_fire_01_v22",
+    "agency": "fire",
+    "region": "BR/US",
+    "title": "Incêndio em apartamento (variação)",
+    "baseSeverity": "critico",
+    "timers": {
+      "worsen": 35,
+      "fail": 80
+    },
+    "outcomes": {
+      "success": "Situação controlada.",
+      "worsen": "A condição se agravou.",
+      "fail": "Falha crítica com vítimas/risco elevado."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "victims"
+      ],
+      "questions": [
+        {
+          "id": "location",
+          "label": "Endereço",
+          "prompt": "Qual o endereço?",
+          "answer": "Prédio ... apto ...",
+          "effect": {
+            "severity": "critico"
+          }
+        },
+        {
+          "id": "victims",
+          "label": "Vítimas presas",
+          "prompt": "Tem alguém preso?",
+          "answer": "Meu filho tá no quarto!",
+          "effect": {
+            "severity": "critico"
+          }
+        },
+        {
+          "id": "smoke",
+          "label": "Fumaça densa",
+          "prompt": "Tem muita fumaça?",
+          "answer": "Sim, não dá pra respirar.",
+          "effect": {
+            "severity": "critico"
+          }
+        },
+        {
+          "id": "caller_name",
+          "label": "Nome do solicitante",
+          "prompt": "Qual seu nome completo?",
+          "answer": "Agora não dá pra falar! Pelo amor de Deus...",
+          "effect": {
+            "timePenaltySec": 12,
+            "forceWorsen": true
+          }
+        }
+      ]
+    },
+    "dispatch": {
+      "correctRoles": [
+        "fire_engine",
+        "rescue"
+      ]
+    },
+    "hint": "Incêndio com risco de vidas. Despache viatura de combate + resgate."
+  },
+  {
+    "id": "fire_gas_leak_02_v23",
+    "agency": "fire",
+    "region": "BR/US",
+    "title": "Vazamento de gás (odor forte) (variação)",
+    "baseSeverity": "grave",
+    "timers": {
+      "worsen": 45,
+      "fail": 105
+    },
+    "outcomes": {
+      "success": "Situação controlada.",
+      "worsen": "A condição se agravou.",
+      "fail": "Falha crítica com vítimas/risco elevado."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "source"
+      ],
+      "questions": [
+        {
+          "id": "location",
+          "label": "Local",
+          "prompt": "Endereço?",
+          "answer": "Cozinha da casa ...",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "source",
+          "label": "Fonte",
+          "prompt": "É botijão/encanamento?",
+          "answer": "Botijão.",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "ignition",
+          "label": "Chamas/centelha",
+          "prompt": "Tem fogo ou faísca?",
+          "answer": "Não, mas tem gente ligando luz.",
+          "effect": {
+            "severity": "critico"
+          }
+        },
+        {
+          "id": "caller_name",
+          "label": "Nome do solicitante",
+          "prompt": "Qual seu nome completo?",
+          "answer": "Agora não dá pra falar! Pelo amor de Deus...",
+          "effect": {
+            "timePenaltySec": 12,
+            "forceWorsen": true
+          }
+        }
+      ]
+    },
+    "dispatch": {
+      "correctRoles": [
+        "hazmat",
+        "fire_engine"
+      ]
+    },
+    "hint": "Oriente evacuação e não acender luz. Despache unidade adequada."
+  },
+  {
+    "id": "fire_elevator_03_v24",
+    "agency": "fire",
+    "region": "BR/US",
+    "title": "Pessoa presa em elevador (variação)",
+    "baseSeverity": "medio",
+    "timers": {
+      "worsen": 70,
+      "fail": 160
+    },
+    "outcomes": {
+      "success": "Situação controlada.",
+      "worsen": "A condição se agravou.",
+      "fail": "Falha crítica com vítimas/risco elevado."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "count"
+      ],
+      "questions": [
+        {
+          "id": "location",
+          "label": "Prédio",
+          "prompt": "Qual o prédio/endereço?",
+          "answer": "Centro ...",
+          "effect": {
+            "severity": "medio"
+          }
+        },
+        {
+          "id": "count",
+          "label": "Quantas pessoas",
+          "prompt": "Quantas presas?",
+          "answer": "Duas.",
+          "effect": {
+            "severity": "medio"
+          }
+        },
+        {
+          "id": "medical",
+          "label": "Mal-estar",
+          "prompt": "Alguém passando mal?",
+          "answer": "Uma tá com falta de ar.",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "caller_name",
+          "label": "Nome do solicitante",
+          "prompt": "Qual seu nome completo?",
+          "answer": "Agora não dá pra falar! Pelo amor de Deus...",
+          "effect": {
+            "timePenaltySec": 12,
+            "forceWorsen": true
+          }
+        }
+      ]
+    },
+    "dispatch": {
+      "correctRoles": [
+        "rescue"
+      ]
+    },
+    "hint": "Resgate técnico. Se houver mal-estar, trate como mais grave."
+  },
+  {
+    "id": "fire_trote_04_v25",
+    "agency": "fire",
+    "region": "BR/US",
+    "title": "Trote (falso incêndio) (variação)",
+    "baseSeverity": "trote",
+    "timers": {
+      "worsen": 80,
+      "fail": 180
+    },
+    "outcomes": {
+      "success": "Situação controlada.",
+      "worsen": "A condição se agravou.",
+      "fail": "Falha crítica com vítimas/risco elevado."
+    },
+    "protocol": {
+      "required": [
+        "confirm"
+      ],
+      "questions": [
+        {
+          "id": "confirm",
+          "label": "Confirmar",
+          "prompt": "Você vê fogo/fumaça agora?",
+          "answer": "Não… é brincadeira…",
+          "effect": {
+            "confidenceTrote": 4
+          }
+        },
+        {
+          "id": "location",
+          "label": "Endereço",
+          "prompt": "Qual o endereço?",
+          "answer": "...",
+          "effect": {
+            "confidenceTrote": 1,
+            "timePenaltySec": 8
+          }
+        }
+      ]
+    },
+    "dispatch": {
+      "correctRoles": [
+        "dismiss_only"
+      ]
+    },
+    "hint": "Trote: encerre. Não desperdice recursos."
+  },
+  {
+    "id": "fire_vehicle_fire_01_v26",
+    "agency": "fire",
+    "region": "GLOBAL",
+    "title": "Incêndio em veículo (variação)",
+    "baseSeverity": "grave",
+    "timers": {
+      "worsen": 45,
+      "fail": 100
+    },
+    "outcomes": {
+      "success": "Resgate concluído.",
+      "worsen": "Risco aumentou.",
+      "fail": "Perda de controle / vítimas."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "people"
+      ],
+      "questions": [
+        {
+          "id": "location",
+          "label": "Local",
+          "prompt": "Onde está o veículo?",
+          "answer": "Posto de gasolina!",
+          "effect": {
+            "severity": "critico"
+          }
+        },
+        {
+          "id": "people",
+          "label": "Pessoas próximas",
+          "prompt": "Tem gente perto?",
+          "answer": "Sim, muita.",
+          "effect": {
+            "severity": "critico"
+          }
+        },
+        {
+          "id": "fuel",
+          "label": "Combustível vazando",
+          "prompt": "Há vazamento?",
+          "answer": "Sim.",
+          "effect": {
+            "severity": "critico"
+          }
+        },
+        {
+          "id": "caller_name",
+          "label": "Nome do solicitante",
+          "prompt": "Qual seu nome completo?",
+          "answer": "Agora não dá pra falar! Pelo amor de Deus...",
+          "effect": {
+            "timePenaltySec": 12,
+            "forceWorsen": true
+          }
+        }
+      ]
+    },
+    "dispatch": {
+      "correctRoles": [
+        "fire_engine"
+      ]
+    },
+    "hint": "Risco de explosão. Priorize rápido."
+  },
+  {
+    "id": "fire_flood_02_v27",
+    "agency": "fire",
+    "region": "GLOBAL",
+    "title": "Alagamento / resgate em enchente (variação)",
+    "baseSeverity": "grave",
+    "timers": {
+      "worsen": 60,
+      "fail": 130
+    },
+    "outcomes": {
+      "success": "Resgate concluído.",
+      "worsen": "Risco aumentou.",
+      "fail": "Perda de controle / vítimas."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "trapped"
+      ],
+      "questions": [
+        {
+          "id": "location",
+          "label": "Endereço",
+          "prompt": "Onde?",
+          "answer": "Rua ...",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "trapped",
+          "label": "Pessoas ilhadas",
+          "prompt": "Quantas?",
+          "answer": "Três no telhado.",
+          "effect": {
+            "severity": "critico"
+          }
+        },
+        {
+          "id": "water",
+          "label": "Nível da água",
+          "prompt": "Até onde subiu?",
+          "answer": "Acima do joelho.",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "caller_name",
+          "label": "Nome do solicitante",
+          "prompt": "Qual seu nome completo?",
+          "answer": "Agora não dá pra falar! Pelo amor de Deus...",
+          "effect": {
+            "timePenaltySec": 12,
+            "forceWorsen": true
+          }
+        }
+      ]
+    },
+    "dispatch": {
+      "correctRoles": [
+        "rescue"
+      ]
+    },
+    "hint": "Resgate técnico. Tempo e água subindo."
+  },
+  {
+    "id": "pol_som_alto_01_v28",
+    "agency": "police",
+    "region": "BR/US",
+    "title": "Perturbação do sossego (som alto) (variação)",
+    "baseSeverity": "leve",
+    "timers": {
+      "worsen": 55,
+      "fail": 120
+    },
+    "outcomes": {
+      "success": "Ocorrência controlada.",
+      "worsen": "A situação piorou e o risco aumentou.",
+      "fail": "Ocorrência evoluiu para consequências graves."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "what"
+      ],
+      "questions": [
+        {
+          "id": "location",
+          "label": "Endereço",
+          "prompt": "Qual o endereço completo e referência?",
+          "answer": "Rua ... número ... (voz irritada)",
+          "effect": {
+            "severity": "leve"
+          }
+        },
+        {
+          "id": "what",
+          "label": "O que acontece",
+          "prompt": "O que está acontecendo exatamente?",
+          "answer": "Som altíssimo há horas.",
+          "effect": {
+            "severity": "leve"
+          }
+        },
+        {
+          "id": "weapons",
+          "label": "Há armas?",
+          "prompt": "Você viu arma ou ameaça?",
+          "answer": "Não, só barulho.",
+          "effect": {
+            "severity": "leve"
+          }
+        },
+        {
+          "id": "caller_name",
+          "label": "Nome do solicitante",
+          "prompt": "Qual seu nome completo?",
+          "answer": "Agora não dá pra falar! Pelo amor de Deus...",
+          "effect": {
+            "timePenaltySec": 12,
+            "forceWorsen": true
+          }
+        }
+      ]
+    },
+    "dispatch": {
+      "correctRoles": [
+        "patrol"
+      ]
+    },
+    "hint": "Coleta endereço e confirma ausência de risco. Despache patrulha de área."
+  },
+  {
+    "id": "pol_domestic_02_v29",
+    "agency": "police",
+    "region": "BR/US",
+    "title": "Violência doméstica (possível agressão) (variação)",
+    "baseSeverity": "grave",
+    "timers": {
+      "worsen": 40,
+      "fail": 90
+    },
+    "outcomes": {
+      "success": "Ocorrência controlada.",
+      "worsen": "A situação piorou e o risco aumentou.",
+      "fail": "Ocorrência evoluiu para consequências graves."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "injuries"
+      ],
+      "questions": [
+        {
+          "id": "location",
+          "label": "Endereço",
+          "prompt": "Endereço e referência?",
+          "answer": "Apartamento ... (sussurrando)",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "injuries",
+          "label": "Feridos?",
+          "prompt": "Tem alguém ferido agora?",
+          "answer": "Ele me empurrou... tô com dor.",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "children",
+          "label": "Crianças no local",
+          "prompt": "Há crianças no imóvel?",
+          "answer": "Sim, duas.",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "weapons",
+          "label": "Armas no local",
+          "prompt": "Ele tem arma/faca?",
+          "answer": "Acho que tem uma faca.",
+          "effect": {
+            "severity": "critico"
+          }
+        },
+        {
+          "id": "caller_name",
+          "label": "Nome do solicitante",
+          "prompt": "Qual seu nome completo?",
+          "answer": "Agora não dá pra falar! Pelo amor de Deus...",
+          "effect": {
+            "timePenaltySec": 12,
+            "forceWorsen": true
+          }
+        }
+      ]
+    },
+    "dispatch": {
+      "correctRoles": [
+        "patrol"
+      ]
+    },
+    "hint": "Priorize proteção. Pergunte feridos e presença de armas. Despache patrulha imediatamente."
   }
 ];
