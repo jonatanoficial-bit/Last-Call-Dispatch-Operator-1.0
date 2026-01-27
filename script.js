@@ -54,6 +54,7 @@
     const commaMs = clamp(opts.commaMs ?? TYPEWRITER.commaMs, 0, 600);
     const punctMs = clamp(opts.punctMs ?? TYPEWRITER.punctMs, 0, 800);
     const newlineMs = clamp(opts.newlineMs ?? TYPEWRITER.newlineMs, 0, 900);
+    const jitterMs = clamp(opts.jitterMs ?? 0, 0, 35);
 
     // Guarda o texto alvo para permitir "skip"
     el.__twFullText = fullText;
@@ -62,10 +63,13 @@
     let i = 0;
 
     function delayForChar(ch) {
-      if (ch === "\n") return baseMs + newlineMs;
-      if (ch === "," || ch === ";" || ch === ":") return baseMs + commaMs;
-      if (ch === "." || ch === "!" || ch === "?") return baseMs + punctMs;
-      return baseMs;
+      // Add a small random jitter to mimic real typing / stress.
+      const jitter = jitterMs ? (Math.random() * jitterMs * 2 - jitterMs) : 0;
+      const j = Math.max(0, Math.round(jitter));
+      if (ch === "\n") return baseMs + newlineMs + j;
+      if (ch === "," || ch === ";" || ch === ":") return baseMs + commaMs + j;
+      if (ch === "." || ch === "!" || ch === "?") return baseMs + punctMs + j;
+      return baseMs + j;
     }
 
     function tick() {
@@ -75,7 +79,11 @@
       const ch = fullText[i++];
       el.textContent += ch;
 
-      const d = delayForChar(ch);
+      const baseDelay = delayForChar(ch);
+      // Jitter makes the text feel more "human" and adds subtle tension when
+      // the operator is under stress.
+      const j = jitterMs ? Math.floor((Math.random() * jitterMs * 2) - jitterMs) : 0;
+      const d = Math.max(0, baseDelay + j);
       setTimeout(tick, d);
     }
 
@@ -98,6 +106,7 @@
     hudTime: $("hudTime"),
     hudScore: $("hudScore"),
     hudQueue: $("hudQueue"),
+    hudStress: $("hudStress"),
 
     citySelect: $("citySelect"),
     agencySelect: $("agencySelect"),
@@ -238,6 +247,15 @@
     score: 0,
     timeSec: 0,
 
+    // Stage 3: operador sob pressão (0..100)
+    stress: 0,
+
+    // Stage 3: condições do turno (atmosfera e pressão). Definido no início do turno.
+    conditions: {
+      timeOfDay: "day", // day | night
+      weather: "clear", // clear | rain | storm
+    },
+
     queue: [],
     activeCall: null,
     units: [],
@@ -279,6 +297,56 @@
   function log(msg) {
     if (!el.log) return;
     el.log.textContent = `${nowStamp()} ${msg}\n` + el.log.textContent;
+  }
+
+  // ----------------------------
+  // Stage 3: Stress / Pressão do operador
+  // ----------------------------
+  function setStress(value) {
+    const v = clamp(Math.round(value), 0, 100);
+    state.stress = v;
+
+    // Band used by CSS for subtle cinematic tension cues
+    const band = v >= 70 ? "high" : v >= 35 ? "mid" : "low";
+    if (document && document.body) {
+      document.body.dataset.stress = band;
+    }
+
+    if (el.hudStress) {
+      el.hudStress.textContent = `${v}%`;
+      el.hudStress.style.setProperty("--meter", `${v}%`);
+    }
+  }
+
+  function addStress(delta) {
+    if (!delta) return;
+    setStress(state.stress + delta);
+  }
+
+  function severityToPressure(sev) {
+    const s = String(sev || "leve").toLowerCase();
+    if (s === "critico") return 1.25;
+    if (s === "grave") return 1.0;
+    if (s === "medio") return 0.75;
+    if (s === "trote") return 0.25;
+    return 0.5;
+  }
+
+  function typingProfileForCall(def, sev) {
+    // Heuristic: use callerState if provided by content; otherwise derive from severity
+    const raw = String(def && def.callerState ? def.callerState : "").toLowerCase();
+    const s = String(sev || def.baseSeverity || "leve").toLowerCase();
+    const callerState = raw || (s === "critico" ? "panic" : s === "grave" ? "panic" : s === "medio" ? "tense" : s === "trote" ? "annoyed" : "normal");
+
+    // Base typing speed by caller state (lower = faster)
+    let base = 32;
+    if (callerState === "panic") base = 30;
+    if (callerState === "crying") base = 36;
+    if (callerState === "whispering") base = 40;
+    if (callerState === "annoyed") base = 26;
+    if (callerState === "calm") base = 34;
+
+    return { callerState, baseMs: base };
   }
 
   // ----------------------------
@@ -340,9 +408,15 @@
   // Timers
   // ----------------------------
   function spawnIntervalByDifficulty(diff) {
-    if (diff === "easy") return 10;
-    if (diff === "hard") return 5;
-    return 7;
+    let base = 7;
+    if (diff === "easy") base = 10;
+    if (diff === "hard") base = 5;
+
+    // Stage 3: conditions influence call volume (night/storm = more pressure)
+    const nightBoost = state.conditions.timeOfDay === "night" ? 0.90 : 1.0;
+    const weatherBoost = state.conditions.weather === "storm" ? 0.85 : state.conditions.weather === "rain" ? 0.92 : 1.0;
+    base = Math.round(base * nightBoost * weatherBoost);
+    return clamp(base, 3, 15);
   }
 
   function queueTTLBySeverity(sev, diff) {
@@ -566,11 +640,14 @@
       const p = Math.max(0, Math.floor(effect.timePenaltySec));
       if (p > 0) {
         state.activeCall.callTTL = Math.max(0, state.activeCall.callTTL - p);
+        // Stage 3: mistakes raise operator stress
+        addStress(Math.min(12, p * 0.6));
       }
     }
 
     // Force an escalation on critical mistakes
     if (effect.forceWorsen) {
+      addStress(10);
       worsenActiveCall("Erro crítico no protocolo");
     }
   }
@@ -592,6 +669,8 @@
     if (!c || c.worsened || c.severity === "trote") return;
     c.worsened = true;
     c.severity = escalateSeverity(c.severity);
+    // Stage 3: escalation spikes operator stress
+    addStress(12);
     // Increase pressure a bit more when it worsens
     c.callTTL = Math.max(0, c.callTTL - 6);
     log(`⚠️ OCORRÊNCIA AGRAVOU (${reason || "tempo"}). Gravidade agora: ${humanSeverity(c.severity)}.`);
@@ -602,6 +681,9 @@
     const c = state.activeCall;
     if (!c) return;
 
+    // Stage 3: failures are mentally crushing
+    addStress(18);
+
     const def = c.def;
     state.stats.wrong += 1;
     state.career.totalFail += 1;
@@ -610,6 +692,12 @@
     const xpDelta = -3;
     state.score += scoreDelta;
     addXp(xpDelta);
+
+    // Stage 3: outcome affects operator stress
+    if (outcome.outcome === "success") addStress(-12);
+    if (outcome.outcome === "partial") addStress(-6);
+    if (outcome.outcome === "fail") addStress(10);
+    if (outcome.outcome === "trote") addStress(8);
 
     addWarning("Falha por tempo/pressão na chamada.");
     log(`☠️ FALHA NA CHAMADA: "${def.title}" (${reason || "tempo esgotado"}) (${scoreDelta})`);
@@ -738,6 +826,10 @@
     if (el.hudTime) el.hudTime.textContent = fmtTime(state.timeSec);
     if (el.hudScore) el.hudScore.textContent = String(state.score);
     if (el.hudQueue) el.hudQueue.textContent = String(state.queue.length);
+    if (el.hudStress) {
+      el.hudStress.textContent = `${state.stress}%`;
+      el.hudStress.style.setProperty("--meter", `${state.stress}%`);
+    }
   }
 
   function updatePills() {
@@ -865,7 +957,8 @@
     const def = c.def;
 
     const line = lineByRegion(def.region, state.agency);
-    el.callMeta.textContent = `Linha: ${line} • Caso: ${def.title} • Gravidade: ${humanSeverity(c.severity)}`;
+    const tp = typingProfileForCall(def, c.severity);
+    el.callMeta.textContent = `Linha: ${line} • Caso: ${def.title} • Gravidade: ${humanSeverity(c.severity)} • Estado: ${tp.callerState}`;
 
     const opener = defaultOpener(def.region, state.agency);
     const protocol = getProtocolDef(def);
@@ -894,11 +987,14 @@
     } else {
       state.ui.lastCallUid = c.uid;
       state.ui.lastTranscript = convo;
+      // Stage 3: typing feel adapts to caller state and operator stress
+      const stressJitter = Math.min(28, Math.round(state.stress / 3));
       typewriter(el.callText, convo, {
-        baseMs: TYPEWRITER.baseMs,
+        baseMs: tp.baseMs,
         commaMs: TYPEWRITER.commaMs,
         punctMs: TYPEWRITER.punctMs,
         newlineMs: TYPEWRITER.newlineMs,
+        jitterMs: stressJitter,
       });
     }
 
@@ -1023,12 +1119,20 @@
 
     state.stats = { handled: 0, dispatched: 0, correct: 0, wrong: 0, expired: 0, dismissedTrote: 0, overtime: 0 };
 
+    // Stage 3: reset stress and roll turn conditions
+    setStress(0);
+    state.conditions.timeOfDay = Math.random() < 0.45 ? "night" : "day";
+    // Weather affects atmosphere and slightly increases pressure
+    const wR = Math.random();
+    state.conditions.weather = wR < 0.65 ? "clear" : wR < 0.90 ? "rain" : "storm";
+
     if (el.btnStartShift) el.btnStartShift.disabled = true;
     if (el.btnEndShift) el.btnEndShift.disabled = false;
 
     renderUnits();
 
     log(`✅ Turno iniciado em ${flagByCityId(state.cityId)} ${cityNameById(state.cityId)} • Agência: ${state.agency} • Dificuldade: ${state.difficulty}`);
+    log(`🌒 Condições: ${state.conditions.timeOfDay === "night" ? "Noite" : "Dia"} • ${state.conditions.weather === "storm" ? "Tempestade" : state.conditions.weather === "rain" ? "Chuva" : "Céu limpo"}`);
     log(`🎓 Carreira: ${state.career.rank} (XP ${state.career.xp}) • Advertências ${state.career.warnings}/3`);
     log(`🧠 Patch: typewriter humano + toque para pular.`);
 
@@ -1311,6 +1415,11 @@
     }
 
     if (hasActive) {
+      // Stage 3: stress builds while handling an active call (pressure is higher on grave/critico)
+      const pressure = severityToPressure(state.activeCall.severity);
+      const weatherBoost = state.conditions.weather === "storm" ? 0.10 : state.conditions.weather === "rain" ? 0.05 : 0.0;
+      addStress((0.14 * pressure) + weatherBoost);
+
       // Worsen timer: escalates severity once
       if (state.activeCall.worsenTTL !== null && !state.activeCall.worsened) {
         state.activeCall.worsenTTL -= 1;
@@ -1435,6 +1544,9 @@
     if (document && document.body) {
       document.body.dataset.agency = state.agency || "police";
     }
+
+    // Stage 3: init stress visuals
+    setStress(state.stress);
 
     renderUnits();
     renderAll();
