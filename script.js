@@ -255,6 +255,9 @@
   const dq = { panel: null, meta: null, buttons: null, hint: null };
   const rp = { panel: null, meta: null, body: null, career: null };
 
+  // Stage 4: Lobby career/objectives UI
+  const lobby = { careerPills: null, unlocksHint: null, objectives: null, btnReset: null };
+
   function bindDynamicUI() {
     dq.panel = ensureDynamicQuestionsUI();
     if (dq.panel) {
@@ -268,6 +271,222 @@
       rp.meta = document.getElementById("rpMeta");
       rp.body = document.getElementById("rpBody");
       rp.career = document.getElementById("rpCareer");
+    }
+
+    // Lobby panels (static in index.html)
+    lobby.careerPills = document.getElementById("lobbyCareerPills");
+    lobby.unlocksHint = document.getElementById("lobbyUnlocksHint");
+    lobby.objectives = document.getElementById("lobbyObjectives");
+    lobby.btnReset = document.getElementById("btnResetCareer");
+  }
+
+  // ----------------------------
+  // Stage 4: Persistência / Progressão (LocalStorage)
+  // ----------------------------
+  const STORAGE_KEY = "lcdo_profile_v1";
+
+  const UNLOCKS_BY_RANK = {
+    // These IDs must match data/cities.js
+    Recruta: ["br_sp"],
+    Operador: ["br_df"],
+    "Sênior": ["eu_ldn"],
+    Supervisor: ["us_nyc"],
+  };
+
+  function allUnlocksUpToRank(rank) {
+    const order = ["Recruta", "Operador", "Sênior", "Supervisor"];
+    const idx = Math.max(0, order.indexOf(rank));
+    const unlocked = new Set();
+    for (let i = 0; i <= idx; i += 1) {
+      const r = order[i];
+      (UNLOCKS_BY_RANK[r] || []).forEach((id) => unlocked.add(id));
+    }
+    return Array.from(unlocked);
+  }
+
+  function defaultProfile() {
+    return {
+      career: {
+        xp: 0,
+        rank: "Recruta",
+        warnings: 0,
+        totalSuccess: 0,
+        totalFail: 0,
+        totalLivesSaved: 0,
+      },
+      progress: {
+        unlockedCities: allUnlocksUpToRank("Recruta"),
+      },
+      settings: {
+        agency: "police",
+        difficulty: "normal",
+        cityId: "br_sp",
+      },
+    };
+  }
+
+  function loadProfile() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return defaultProfile();
+      const p = JSON.parse(raw);
+      // Shallow validation / forward compatibility
+      if (!p || typeof p !== "object") return defaultProfile();
+      if (!p.career) p.career = defaultProfile().career;
+      if (!p.progress) p.progress = defaultProfile().progress;
+      if (!Array.isArray(p.progress.unlockedCities)) p.progress.unlockedCities = defaultProfile().progress.unlockedCities;
+      if (!p.settings) p.settings = defaultProfile().settings;
+      return p;
+    } catch {
+      return defaultProfile();
+    }
+  }
+
+  function saveProfile() {
+    try {
+      const profile = {
+        career: state.career,
+        progress: state.progress,
+        settings: {
+          agency: state.agency,
+          difficulty: state.difficulty,
+          cityId: state.cityId,
+        },
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+    } catch {
+      // ignore
+    }
+  }
+
+  // ----------------------------
+  // Stage 4: Objetivos do turno (metas) + bônus de XP
+  // ----------------------------
+  function generateShiftObjectives() {
+    // Keep objectives stable until next time user visits the lobby
+    const diff = state.difficulty || "normal";
+    const rank = state.career.rank || "Recruta";
+
+    const baseHandled = diff === "easy" ? 5 : diff === "hard" ? 8 : 6;
+    const baseCorrect = diff === "easy" ? 4 : diff === "hard" ? 7 : 5;
+    const baseRate = diff === "easy" ? 0.60 : diff === "hard" ? 0.80 : 0.70;
+    const bonusScale = rank === "Supervisor" ? 1.3 : rank === "Sênior" ? 1.15 : rank === "Operador" ? 1.05 : 1.0;
+
+    const pool = [
+      {
+        id: "handled",
+        label: `Atender ${baseHandled} chamadas no turno`,
+        check: () => (state.stats.handled || 0) >= baseHandled,
+        bonusXp: Math.round(10 * bonusScale),
+      },
+      {
+        id: "correct",
+        label: `Realizar ${baseCorrect} despachos corretos`,
+        check: () => (state.stats.correct || 0) >= baseCorrect,
+        bonusXp: Math.round(12 * bonusScale),
+      },
+      {
+        id: "rate",
+        label: `Manter taxa de acerto ≥ ${Math.round(baseRate * 100)}%`,
+        check: () => {
+          const d = Math.max(1, state.stats.dispatched || 0);
+          return (state.stats.correct || 0) / d >= baseRate;
+        },
+        bonusXp: Math.round(14 * bonusScale),
+      },
+      {
+        id: "no_warnings",
+        label: "Finalizar sem advertências", 
+        check: () => (state.career.warnings || 0) === 0,
+        bonusXp: Math.round(16 * bonusScale),
+      },
+      {
+        id: "score",
+        label: `Fechar turno com ≥ ${diff === "easy" ? 35 : diff === "hard" ? 60 : 45} pontos`,
+        check: () => (state.score || 0) >= (diff === "easy" ? 35 : diff === "hard" ? 60 : 45),
+        bonusXp: Math.round(12 * bonusScale),
+      },
+    ];
+
+    // pick 3 objectives with variety
+    const picked = [];
+    const used = new Set();
+    while (picked.length < 3 && used.size < pool.length) {
+      const i = Math.floor(Math.random() * pool.length);
+      if (used.has(i)) continue;
+      used.add(i);
+      picked.push({ ...pool[i] });
+    }
+
+    state.objectives.list = picked;
+    state.objectives.completed = [];
+    state.objectives.bonusAwarded = false;
+  }
+
+  function renderLobbyCareer() {
+    if (!lobby.careerPills) return;
+    lobby.careerPills.innerHTML = `
+      <div class="pill">Rank: ${escapeHtml(state.career.rank)}</div>
+      <div class="pill">XP: ${state.career.xp}</div>
+      <div class="pill">Sucessos: ${state.career.totalSuccess}</div>
+      <div class="pill">Falhas: ${state.career.totalFail}</div>
+      <div class="pill">Vidas salvas: ${state.career.totalLivesSaved}</div>
+    `;
+
+    if (lobby.unlocksHint) {
+      const unlocked = Array.isArray(state.progress.unlockedCities) ? state.progress.unlockedCities.length : 0;
+      const nextRank = state.career.rank === "Recruta" ? "Operador" : state.career.rank === "Operador" ? "Sênior" : state.career.rank === "Sênior" ? "Supervisor" : null;
+      const nextCities = nextRank ? (UNLOCKS_BY_RANK[nextRank] || []) : [];
+      const hint = nextRank
+        ? `Cidades desbloqueadas: <b>${unlocked}</b>. Próximo desbloqueio em <b>${nextRank}</b>: ${nextCities.map(cityNameById).join(", ") || "—"}`
+        : `Cidades desbloqueadas: <b>${unlocked}</b>. Você já está no rank máximo.`;
+      lobby.unlocksHint.innerHTML = hint;
+    }
+  }
+
+  function renderLobbyObjectives() {
+    if (!lobby.objectives) return;
+    const list = Array.isArray(state.objectives.list) ? state.objectives.list : [];
+    if (!list.length) {
+      lobby.objectives.textContent = "—";
+      return;
+    }
+    const html = list
+      .map((o) => {
+        const done = state.objectives.completed.includes(o.id);
+        const mark = done ? "✅" : "⬜";
+        return `${mark} ${escapeHtml(o.label)} <span style="opacity:.8;">(+${o.bonusXp} XP)</span>`;
+      })
+      .join("<br>");
+    lobby.objectives.innerHTML = html;
+  }
+
+  function evaluateObjectivesAndAward() {
+    if (state.objectives.bonusAwarded) return;
+    const list = Array.isArray(state.objectives.list) ? state.objectives.list : [];
+    if (!list.length) return;
+
+    const completed = [];
+    let bonus = 0;
+    list.forEach((o) => {
+      try {
+        if (o.check && o.check()) {
+          completed.push(o.id);
+          bonus += o.bonusXp || 0;
+        }
+      } catch {
+        // ignore
+      }
+    });
+
+    state.objectives.completed = completed;
+    state.objectives.bonusAwarded = true;
+
+    if (completed.length) {
+      addXp(bonus);
+      log(`🎯 Objetivos concluídos: ${completed.length}/${list.length} • Bônus XP +${bonus}`);
+    } else {
+      log("🎯 Objetivos não concluídos neste turno.");
     }
   }
 
@@ -336,6 +555,18 @@
       totalLivesSaved: 0,
     },
 
+    // Stage 4: desbloqueios (carreira)
+    progress: {
+      unlockedCities: ["br_sp"],
+    },
+
+    // Stage 4: objetivos do turno (gerados no lobby)
+    objectives: {
+      list: [],
+      completed: [],
+      bonusAwarded: false,
+    },
+
     stats: {
       handled: 0,
       dispatched: 0,
@@ -344,6 +575,7 @@
       expired: 0,
       dismissedTrote: 0,
       overtime: 0,
+      livesSaved: 0,
     },
 
     tickInterval: null,
@@ -471,12 +703,25 @@
     if (newRank !== state.career.rank) {
       state.career.rank = newRank;
       log(`🏅 Promoção: agora você é ${newRank}!`);
+
+      // Stage 4: unlock new cities on promotion
+      const before = new Set(state.progress.unlockedCities || []);
+      const unlockedNow = allUnlocksUpToRank(state.career.rank);
+      state.progress.unlockedCities = Array.from(new Set([...before, ...unlockedNow]));
+      const gained = state.progress.unlockedCities.filter((id) => !before.has(id));
+      if (gained.length) {
+        const names = gained.map((id) => cityNameById(id)).join(", ");
+        log(`🗺️ Novas cidades desbloqueadas: ${names}`);
+      }
     }
+
+    saveProfile();
   }
 
   function addWarning(reason) {
     state.career.warnings += 1;
     log(`⚠️ ADVERTÊNCIA (${state.career.warnings}/3): ${reason}`);
+    saveProfile();
     if (state.career.warnings >= 3) {
       log("🛑 DEMISSÃO VIRTUAL: 3 advertências no turno. Turno encerrado.");
       endShift();
@@ -653,12 +898,18 @@
   }
 
   function populateCities() {
-    const cities = getCities();
+    const unlocked = new Set(Array.isArray(state.progress?.unlockedCities) ? state.progress.unlockedCities : []);
+    const citiesAll = getCities();
+    // If current selection is not unlocked (e.g., after data update), keep it available
+    if (state.cityId) unlocked.add(state.cityId);
+    let cities = citiesAll.filter((c) => unlocked.has(c.id));
+    // Safety: if unlock IDs don't match current dataset, don't soft-lock the player
+    if (!cities.length) cities = citiesAll;
     if (!el.citySelect) return;
     el.citySelect.innerHTML = cities
       .map((c) => `<option value="${escapeHtml(c.id)}">${flagByCityId(c.id)} ${escapeHtml(c.name)}</option>`)
       .join("");
-    state.cityId = cities[0]?.id || "sp_sim";
+    state.cityId = state.cityId || cities[0]?.id || "br_sp";
     el.citySelect.value = state.cityId;
   }
 
@@ -1007,6 +1258,17 @@
     }
 
     const s = state.stats;
+    const obj = Array.isArray(state.objectives.list) ? state.objectives.list : [];
+    const objHtml = obj.length
+      ? `<div style="margin-top:10px; font-size:12px; color:rgba(233,240,255,0.75); line-height:1.35">
+          <b>Objetivos do turno</b><br>
+          ${obj.map((o) => {
+            let done = false;
+            try { done = !!(o.check && o.check()); } catch { done = false; }
+            return `${done ? "✅" : "⬜"} ${escapeHtml(o.label)}`;
+          }).join("<br>")}
+        </div>`
+      : "";
     el.shiftSummary.innerHTML = `
       <div style="display:flex; gap:10px; flex-wrap:wrap;">
         <div class="pill">Atendidas: ${s.handled}</div>
@@ -1020,6 +1282,7 @@
       <div style="margin-top:10px; font-size:12px; color:rgba(233,240,255,0.70)">
         Carreira: ${escapeHtml(state.career.rank)} • XP ${state.career.xp} • Advertências ${state.career.warnings}/3
       </div>
+      ${objHtml}
     `;
   }
 
@@ -1199,7 +1462,7 @@
   function startShift() {
     if (state.shiftActive) return;
 
-    state.cityId = el.citySelect ? (el.citySelect.value || getCities()[0]?.id || "sp_sim") : "sp_sim";
+    state.cityId = el.citySelect ? (el.citySelect.value || getCities()[0]?.id || "br_sp") : "br_sp";
     state.agency = el.agencySelect ? (el.agencySelect.value || "police") : "police";
     state.difficulty = el.difficultySelect ? (el.difficultySelect.value || "normal") : "normal";
 
@@ -1213,7 +1476,7 @@
     state.ui.lastCallUid = null;
     state.ui.lastTranscript = "";
 
-    state.stats = { handled: 0, dispatched: 0, correct: 0, wrong: 0, expired: 0, dismissedTrote: 0, overtime: 0 };
+    state.stats = { handled: 0, dispatched: 0, correct: 0, wrong: 0, expired: 0, dismissedTrote: 0, overtime: 0, livesSaved: 0 };
 
     // Stage 3: reset stress and roll turn conditions
     setStress(0);
@@ -1255,6 +1518,13 @@
     if (el.btnEndShift) el.btnEndShift.disabled = true;
 
     log("🛑 Turno encerrado.");
+
+    // Stage 4: evaluate objectives and award bonus XP at end of shift
+    evaluateObjectivesAndAward();
+    renderLobbyCareer();
+    renderLobbyObjectives();
+    saveProfile();
+
     renderAll();
   }
 
@@ -1438,6 +1708,7 @@
 
     if (outcome.livesSaved > 0) {
       state.career.totalLivesSaved += outcome.livesSaved;
+      state.stats.livesSaved += outcome.livesSaved;
       scoreDelta += 6;
       xpDelta += 4;
     }
@@ -1587,10 +1858,46 @@
         if (document && document.body) {
           document.body.dataset.agency = state.agency || "police";
         }
+
+        // Stage 4: generate objectives for the next shift and persist settings
+        generateShiftObjectives();
+        saveProfile();
+
         renderUnits();
         refreshLobbySummary();
         setScreen("lobby");
+        renderLobbyCareer();
+        renderLobbyObjectives();
         renderAll();
+      });
+    }
+
+    // Stage 4: reset career
+    if (lobby.btnReset) {
+      lobby.btnReset.addEventListener("click", () => {
+        if (state.shiftActive) {
+          log("⚠️ Encerre o turno antes de resetar a carreira.");
+          return;
+        }
+        try { localStorage.removeItem(STORAGE_KEY); } catch {}
+        const p = defaultProfile();
+        state.career = p.career;
+        state.progress = p.progress;
+        state.agency = p.settings.agency;
+        state.difficulty = p.settings.difficulty;
+        state.cityId = p.settings.cityId;
+        if (el.agencySelect) el.agencySelect.value = state.agency;
+        if (el.difficultySelect) el.difficultySelect.value = state.difficulty;
+        populateCities();
+        if (document && document.body) document.body.dataset.agency = state.agency || "police";
+        generateShiftObjectives();
+        saveProfile();
+        refreshLobbySummary();
+        renderLobbyCareer();
+        renderLobbyObjectives();
+        renderUnits();
+        renderAll();
+        log("🧹 Carreira resetada.");
       });
     }
 
@@ -1608,6 +1915,7 @@
       el.btnToShift.addEventListener("click", () => {
         refreshLobbySummary();
         setScreen("shift");
+        // Keep objectives visible in lobby, but also reflect them in the shift summary area
         renderAll();
       });
     }
@@ -1627,6 +1935,7 @@
       el.citySelect.addEventListener("change", () => {
         state.cityId = el.citySelect.value;
         log(`🏙️ Cidade: ${flagByCityId(state.cityId)} ${cityNameById(state.cityId)}`);
+        saveProfile();
         renderUnits();
         refreshLobbySummary();
         renderAll();
@@ -1642,6 +1951,7 @@
           document.body.dataset.agency = state.agency || "police";
         }
         log(`🏛️ Agência: ${state.agency}`);
+        saveProfile();
         renderUnits();
         refreshLobbySummary();
         renderAll();
@@ -1652,6 +1962,7 @@
       el.difficultySelect.addEventListener("change", () => {
         state.difficulty = el.difficultySelect.value;
         log(`⚙️ Dificuldade: ${state.difficulty}`);
+        saveProfile();
       });
     }
 
@@ -1677,11 +1988,19 @@
   // ----------------------------
   function init() {
     bindDynamicUI();
-    populateCities();
 
-    if (el.agencySelect) state.agency = el.agencySelect.value || "police";
-    if (el.difficultySelect) state.difficulty = el.difficultySelect.value || "normal";
-    if (el.citySelect) state.cityId = el.citySelect.value || (getCities()[0]?.id || "sp_sim");
+    // Stage 4: load saved profile (career + unlocks + last settings)
+    const p = loadProfile();
+    state.career = p.career;
+    state.progress = p.progress;
+    state.agency = p.settings.agency;
+    state.difficulty = p.settings.difficulty;
+    state.cityId = p.settings.cityId;
+
+    populateCities();
+    if (el.agencySelect) el.agencySelect.value = state.agency || "police";
+    if (el.difficultySelect) el.difficultySelect.value = state.difficulty || "normal";
+    if (el.citySelect) el.citySelect.value = state.cityId;
 
     if (el.btnEndShift) el.btnEndShift.disabled = true;
 
@@ -1696,6 +2015,12 @@
     // Start in Setup screen (mobile-first flow)
     refreshLobbySummary();
     setScreen("setup");
+
+    // Stage 4: prepare objectives for the next shift and show career panel in lobby
+    generateShiftObjectives();
+    renderLobbyCareer();
+    renderLobbyObjectives();
+    saveProfile();
 
     renderUnits();
     renderAll();
