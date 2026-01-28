@@ -49,9 +49,11 @@
       </div>
     </header>
 
-    <main class="grid">
-      <section class="card">
-        <div class="cardTitle">Configuração</div>
+    <main>
+      <!-- SCREEN 1: Setup (cidade/agência/dificuldade) -->
+      <div class="screen grid active" id="screenSetup">
+        <section class="card">
+          <div class="cardTitle">Configuração</div>
 
         <div class="formRow">
           <label class="label">Cidade</label>
@@ -75,29 +77,49 @@
           </select>
         </div>
 
-        <div class="btnRow">
-          <button id="btnStartShift" class="btnPrimary">Iniciar Turno</button>
-          <button id="btnEndShift" class="btnGhost" disabled>Encerrar Turno</button>
-        </div>
+          <div class="btnRow">
+            <button id="btnToLobby" class="btnPrimary">Continuar</button>
+          </div>
 
         <div class="hint">
           Regra do jogo: você <b>atende</b> e depois faz <b>despacho manual</b>. Se for trote, o correto é <b>encerrar</b>.
         </div>
-      </section>
+        </section>
+      </div>
 
-      <section class="card">
-        <div class="cardTitle">Unidades</div>
-        <div id="unitsList" class="list"></div>
-        <div class="hint">Dica: cada unidade tem função (role). Enviar errado dá penalidade.</div>
-      </section>
+      <!-- SCREEN 2: Lobby (confirmação + unidades) -->
+      <div class="screen grid" id="screenLobby">
+        <section class="card">
+          <div class="cardTitle">Lobby</div>
+          <div class="hint" id="lobbySummary">—</div>
+          <div class="btnRow" style="margin-top:12px;">
+            <button id="btnBackSetup" class="btnGhost">Voltar</button>
+            <button id="btnToShift" class="btnPrimary">Ir para o plantão</button>
+          </div>
+          <div class="hint" style="margin-top:10px;">Revise as unidades disponíveis antes de iniciar o turno.</div>
+        </section>
 
-      <section class="card">
-        <div class="cardTitle">Registro</div>
-        <pre id="log" class="log"></pre>
-      </section>
+        <section class="card">
+          <div class="cardTitle">Unidades</div>
+          <div id="unitsList" class="list"></div>
+          <div class="hint">Dica: cada unidade tem função (role). Enviar errado dá penalidade.</div>
+        </section>
+      </div>
 
-      <section class="card">
-        <div class="cardTitle">Operação</div>
+      <!-- SCREEN 3: Plantão (jogo) -->
+      <div class="screen grid" id="screenShift">
+        <section class="card">
+          <div class="cardTitle">Controles do Turno</div>
+          <div class="hint" id="shiftSummaryTop">—</div>
+          <div class="btnRow" style="margin-top:12px;">
+            <button id="btnBackLobby" class="btnGhost">Lobby</button>
+            <button id="btnStartShift" class="btnPrimary">Iniciar Turno</button>
+            <button id="btnEndShift" class="btnGhost" disabled>Encerrar Turno</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="cardTitle">Operação</div>
 
         <div class="pills">
           <div class="pill" id="pillStatus">Turno parado</div>
@@ -129,17 +151,23 @@
 
           <div class="hint">Você pontua por escolher a unidade certa (ou encerrar trote) dentro do tempo.</div>
         </div>
-      </section>
+        </section>
 
-      <section class="card">
-        <div class="cardTitle">Fila de Chamadas</div>
-        <div id="queueList" class="queue">—</div>
-      </section>
+        <section class="card">
+          <div class="cardTitle">Fila de Chamadas</div>
+          <div id="queueList" class="queue">—</div>
+        </section>
 
-      <section class="card">
-        <div class="cardTitle">Resumo do Turno</div>
-        <div id="shiftSummary" class="summary">Nenhum turno ativo.</div>
-      </section>
+        <section class="card">
+          <div class="cardTitle">Registro</div>
+          <pre id="log" class="log"></pre>
+        </section>
+
+        <section class="card">
+          <div class="cardTitle">Resumo do Turno</div>
+          <div id="shiftSummary" class="summary">Nenhum turno ativo.</div>
+        </section>
+      </div>
     </main>
   </div>
 

@@ -73,6 +73,11 @@ a { color: inherit; text-decoration: none; }
 /* Layout base */
 .app { width: min(1100px, 100%); margin: 0 auto; padding: 14px 12px 30px; }
 
+/* Multi-screen flow (Setup -> Lobby -> Plantão)
+   Avoids the "scroll down to play" feel on mobile. */
+.screen{ display:none; }
+.screen.active{ display:grid; }
+
 /* Topbar */
 .topbar{
   display:flex;

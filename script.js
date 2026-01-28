@@ -90,6 +90,53 @@
     tick();
   }
 
+  // Incremental typewriter: appends only the new part of fullText.
+  // Used to avoid re-typing the opener every time the player clicks a question.
+  function typewriterAppend(el, fullText, opts = {}) {
+    if (!el) return;
+
+    // If current content is not a prefix of fullText, fall back to full render.
+    const current = el.textContent || "";
+    if (!fullText.startsWith(current)) {
+      typewriter(el, fullText, opts);
+      return;
+    }
+
+    const token = Symbol("tw_append");
+    el.__twToken = token;
+
+    const baseMs = clamp(opts.baseMs ?? TYPEWRITER.baseMs, 12, 80);
+    const commaMs = clamp(opts.commaMs ?? TYPEWRITER.commaMs, 0, 600);
+    const punctMs = clamp(opts.punctMs ?? TYPEWRITER.punctMs, 0, 800);
+    const newlineMs = clamp(opts.newlineMs ?? TYPEWRITER.newlineMs, 0, 900);
+    const jitterMs = clamp(opts.jitterMs ?? 0, 0, 35);
+
+    el.__twFullText = fullText;
+
+    let i = current.length;
+
+    function delayForChar(ch) {
+      const jitter = jitterMs ? (Math.random() * jitterMs * 2 - jitterMs) : 0;
+      const j = Math.max(0, Math.round(jitter));
+      if (ch === "\n") return baseMs + newlineMs + j;
+      if (ch === "," || ch === ";" || ch === ":") return baseMs + commaMs + j;
+      if (ch === "." || ch === "!" || ch === "?") return baseMs + punctMs + j;
+      return baseMs + j;
+    }
+
+    function tick() {
+      if (el.__twToken !== token) return;
+      if (i >= fullText.length) return;
+      const ch = fullText[i++];
+      el.textContent += ch;
+      const baseDelay = delayForChar(ch);
+      const j = jitterMs ? Math.floor((Math.random() * jitterMs * 2) - jitterMs) : 0;
+      setTimeout(tick, Math.max(0, baseDelay + j));
+    }
+
+    tick();
+  }
+
   function skipTypewriter(el) {
     if (!el) return;
     if (!el.__twToken) return;
@@ -111,6 +158,17 @@
     citySelect: $("citySelect"),
     agencySelect: $("agencySelect"),
     difficultySelect: $("difficultySelect"),
+
+    // Screens / navigation
+    screenSetup: $("screenSetup"),
+    screenLobby: $("screenLobby"),
+    screenShift: $("screenShift"),
+    btnToLobby: $("btnToLobby"),
+    btnBackSetup: $("btnBackSetup"),
+    btnToShift: $("btnToShift"),
+    btnBackLobby: $("btnBackLobby"),
+    lobbySummary: $("lobbySummary"),
+    shiftSummaryTop: $("shiftSummaryTop"),
 
     btnStartShift: $("btnStartShift"),
     btnEndShift: $("btnEndShift"),
@@ -266,6 +324,7 @@
     ui: {
       lastCallUid: null,
       lastTranscript: "",
+      view: "setup", // setup | lobby | shift
     },
 
     career: {
@@ -297,6 +356,26 @@
   function log(msg) {
     if (!el.log) return;
     el.log.textContent = `${nowStamp()} ${msg}\n` + el.log.textContent;
+  }
+
+  function setScreen(view) {
+    state.ui.view = view;
+    const screens = [el.screenSetup, el.screenLobby, el.screenShift].filter(Boolean);
+    screens.forEach((s) => s.classList.remove("active"));
+    if (view === "setup" && el.screenSetup) el.screenSetup.classList.add("active");
+    if (view === "lobby" && el.screenLobby) el.screenLobby.classList.add("active");
+    if (view === "shift" && el.screenShift) el.screenShift.classList.add("active");
+    // Keep it feeling like a proper app screen
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }
+
+  function refreshLobbySummary() {
+    if (!el.lobbySummary) return;
+    const city = cityNameById(state.cityId);
+    const agency = state.agency === "fire" ? "Bombeiros" : "Polícia";
+    const diff = state.difficulty === "easy" ? "Fácil" : state.difficulty === "hard" ? "Difícil" : "Normal";
+    el.lobbySummary.innerHTML = `<b>${agency}</b> • ${city} • Dificuldade: ${diff}`;
+    if (el.shiftSummaryTop) el.shiftSummaryTop.innerHTML = el.lobbySummary.innerHTML;
   }
 
   // ----------------------------
@@ -531,12 +610,21 @@
     }
 
     if (el.dispatchUnitSelect) {
+      // Preserve current selection. Stage 3 updates the UI frequently (stress, HUD),
+      // so we must not wipe the user's selection before they click "Despachar".
+      const prev = el.dispatchUnitSelect.value;
+
       el.dispatchUnitSelect.innerHTML =
         `<option value="">Selecione a unidade</option>` +
         state.units
           .filter((u) => u.status === "available")
           .map((u) => `<option value="${escapeHtml(u.id)}">${escapeHtml(u.name)} (${escapeHtml(u.role)})</option>`)
           .join("");
+
+      // Restore selection if still available
+      if (prev && [...el.dispatchUnitSelect.options].some((o) => o.value === prev)) {
+        el.dispatchUnitSelect.value = prev;
+      }
     }
   }
 
@@ -982,20 +1070,28 @@
     const sameCall = state.ui.lastCallUid === c.uid;
     const sameText = state.ui.lastTranscript === convo;
 
+    // Stage 3: typing feel adapts to caller state and operator stress
+    const stressJitter = Math.min(28, Math.round(state.stress / 3));
+    const twOpts = {
+      baseMs: tp.baseMs,
+      commaMs: TYPEWRITER.commaMs,
+      punctMs: TYPEWRITER.punctMs,
+      newlineMs: TYPEWRITER.newlineMs,
+      jitterMs: stressJitter,
+    };
+
     if (!force && sameCall && sameText) {
       // não reinicia typewriter
+    } else if (!force && sameCall && state.ui.lastTranscript && convo.startsWith(state.ui.lastTranscript)) {
+      // ✅ Não reescreve o "190/193..." toda hora.
+      // Em vez disso, finaliza o que estiver animando e digita apenas o trecho novo.
+      skipTypewriter(el.callText);
+      state.ui.lastTranscript = convo;
+      typewriterAppend(el.callText, convo, twOpts);
     } else {
       state.ui.lastCallUid = c.uid;
       state.ui.lastTranscript = convo;
-      // Stage 3: typing feel adapts to caller state and operator stress
-      const stressJitter = Math.min(28, Math.round(state.stress / 3));
-      typewriter(el.callText, convo, {
-        baseMs: tp.baseMs,
-        commaMs: TYPEWRITER.commaMs,
-        punctMs: TYPEWRITER.punctMs,
-        newlineMs: TYPEWRITER.newlineMs,
-        jitterMs: stressJitter,
-      });
+      typewriter(el.callText, convo, twOpts);
     }
 
     if (el.dispatchInfo) {
@@ -1480,11 +1576,59 @@
   // Bind UI
   // ----------------------------
   function bind() {
+    // Screen navigation
+    if (el.btnToLobby) {
+      el.btnToLobby.addEventListener("click", () => {
+        // Persist current selections before moving on
+        if (el.citySelect) state.cityId = el.citySelect.value;
+        if (el.agencySelect) state.agency = el.agencySelect.value || "police";
+        if (el.difficultySelect) state.difficulty = el.difficultySelect.value || "normal";
+
+        if (document && document.body) {
+          document.body.dataset.agency = state.agency || "police";
+        }
+        renderUnits();
+        refreshLobbySummary();
+        setScreen("lobby");
+        renderAll();
+      });
+    }
+
+    if (el.btnBackSetup) {
+      el.btnBackSetup.addEventListener("click", () => {
+        if (state.shiftActive) {
+          log("⚠️ Encerre o turno antes de voltar para a configuração.");
+          return;
+        }
+        setScreen("setup");
+      });
+    }
+
+    if (el.btnToShift) {
+      el.btnToShift.addEventListener("click", () => {
+        refreshLobbySummary();
+        setScreen("shift");
+        renderAll();
+      });
+    }
+
+    if (el.btnBackLobby) {
+      el.btnBackLobby.addEventListener("click", () => {
+        if (state.shiftActive) {
+          log("⚠️ Turno em andamento. Encerre o turno para retornar ao lobby.");
+          return;
+        }
+        refreshLobbySummary();
+        setScreen("lobby");
+      });
+    }
+
     if (el.citySelect) {
       el.citySelect.addEventListener("change", () => {
         state.cityId = el.citySelect.value;
         log(`🏙️ Cidade: ${flagByCityId(state.cityId)} ${cityNameById(state.cityId)}`);
         renderUnits();
+        refreshLobbySummary();
         renderAll();
       });
     }
@@ -1499,6 +1643,7 @@
         }
         log(`🏛️ Agência: ${state.agency}`);
         renderUnits();
+        refreshLobbySummary();
         renderAll();
       });
     }
@@ -1548,10 +1693,14 @@
     // Stage 3: init stress visuals
     setStress(state.stress);
 
+    // Start in Setup screen (mobile-first flow)
+    refreshLobbySummary();
+    setScreen("setup");
+
     renderUnits();
     renderAll();
 
-    log("✅ Sistema pronto. Clique em INICIAR TURNO.");
+    log("✅ Sistema pronto. Configure e avance para o lobby.");
     log("✅ Typewriter: mais humano + toque para pular.");
   }
 
