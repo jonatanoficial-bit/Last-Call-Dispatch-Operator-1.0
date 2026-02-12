@@ -11,6 +11,9 @@
   <meta http-equiv="Expires" content="0" />
 
   <link rel="stylesheet" href="./styles.css?v=2025-12-26-01" />
+
+  <!-- Leaflet (Mapa) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
 </head>
 
 <body>
@@ -21,6 +24,7 @@
         <div class="brandText">
           <div class="title">Last Call Dispatch Operator</div>
           <div class="subtitle">Simulador de Central de Emergência</div>
+          <div class="buildStamp" id="buildStamp">—</div>
         </div>
       </div>
 
@@ -74,6 +78,14 @@
             <option value="easy">Fácil</option>
             <option value="normal" selected>Normal</option>
             <option value="hard">Difícil</option>
+          </select>
+        </div>
+
+        <div class="formRow">
+          <label class="label">Modo</label>
+          <select id="modeSelect" class="select">
+            <option value="career" selected>Carreira (progressão)</option>
+            <option value="sandbox">Sandbox (jogo livre)</option>
           </select>
         </div>
 
@@ -143,6 +155,12 @@
 
       <!-- SCREEN 3: Plantão (jogo) -->
       <div class="screen grid" id="screenShift">
+        <section class="card mapCard">
+          <div class="cardTitle">Mapa Operacional</div>
+          <div class="hint" id="mapHint">Incidentes e bases aparecem aqui quando o turno está ativo.</div>
+          <div id="map" class="map"></div>
+        </section>
+
         <section class="card">
           <div class="cardTitle">Controles do Turno</div>
           <div class="hint" id="shiftSummaryTop">—</div>
@@ -207,7 +225,9 @@
   </div>
 
   <!-- MUITO IMPORTANTE: ordem e cache-busting -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="./data/cities.js?v=2025-12-26-01"></script>
+  <script src="./data/geo.js?v=2026-02-12-01"></script>
   <script src="./data/calls.js?v=2025-12-26-01"></script>
   <script src="./script.js?v=2025-12-26-01"></script>
 </body>

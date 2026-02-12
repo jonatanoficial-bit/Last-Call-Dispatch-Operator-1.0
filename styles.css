@@ -379,6 +379,28 @@ button:disabled{
   color: var(--textDim);
 }
 
+/* Build stamp */
+.buildStamp{
+  margin-top: 2px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: rgba(233,240,255,0.55);
+}
+
+/* Map */
+.mapCard{ grid-column: 1 / -1; }
+.map{
+  margin-top: 10px;
+  height: 320px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.10);
+  overflow: hidden;
+}
+
+@media (min-width: 980px){
+  .map{ height: 380px; }
+}
+
 /*
  * Agency-themed overrides
  *

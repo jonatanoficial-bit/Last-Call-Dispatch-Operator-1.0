@@ -176,6 +176,7 @@
     citySelect: $("citySelect"),
     agencySelect: $("agencySelect"),
     difficultySelect: $("difficultySelect"),
+    modeSelect: $("modeSelect"),
 
     // Screens / navigation
     screenSetup: $("screenSetup"),
@@ -199,6 +200,9 @@
 
     callMeta: $("callMeta"),
     callText: $("callText"),
+    map: $("map"),
+    mapHint: $("mapHint"),
+    buildStamp: $("buildStamp"),
 
     btnAnswer: $("btnAnswer"),
     btnHold: $("btnHold"),
@@ -211,6 +215,93 @@
     queueList: $("queueList"),
     shiftSummary: $("shiftSummary"),
   };
+
+  // ----------------------------
+  // Stage 7A: Map (Leaflet)
+  // ----------------------------
+  const mapState = {
+    map: null,
+    baseLayer: null,
+    incidentMarker: null,
+    baseMarkers: [],
+    lastCityId: null,
+  };
+
+  function setBuildStamp() {
+    if (!el.buildStamp) return;
+    try {
+      const d = new Date();
+      el.buildStamp.textContent = `Build ${d.toLocaleDateString('pt-BR')} ${d.toLocaleTimeString('pt-BR')}`;
+    } catch {
+      el.buildStamp.textContent = "Build";
+    }
+  }
+
+  function getCityCenter(cityId) {
+    const geo = window.CITY_GEO && window.CITY_GEO[cityId];
+    return geo && Array.isArray(geo.center) ? geo.center : [0, 0];
+  }
+
+  function ensureMap() {
+    if (!el.map || typeof window.L === 'undefined') return;
+    if (!mapState.map) {
+      mapState.map = L.map(el.map, { zoomControl: true, preferCanvas: true });
+      mapState.baseLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap'
+      });
+      mapState.baseLayer.addTo(mapState.map);
+    }
+    if (mapState.lastCityId !== state.cityId) {
+      mapState.lastCityId = state.cityId;
+      const center = getCityCenter(state.cityId);
+      mapState.map.setView(center, 12);
+      renderBasesOnMap();
+      if (el.mapHint) el.mapHint.textContent = `Cidade: ${getCityName(state.cityId)} • Bases e incidentes aparecerão aqui.`;
+    }
+  }
+
+  function clearBaseMarkers() {
+    mapState.baseMarkers.forEach((m) => { try { m.remove(); } catch {} });
+    mapState.baseMarkers = [];
+  }
+
+  function renderBasesOnMap() {
+    if (!mapState.map) return;
+    clearBaseMarkers();
+    const center = getCityCenter(state.cityId);
+    // Create a small cluster around the city center to represent bases.
+    const bases = [
+      { label: state.agency === 'fire' ? 'Base (Bombeiros)' : 'Base (Polícia)', dx: 0.00, dy: 0.00 },
+      { label: 'Base Secundária', dx: 0.02, dy: -0.015 },
+    ];
+    bases.forEach((b) => {
+      const lat = center[0] + b.dx;
+      const lng = center[1] + b.dy;
+      const m = L.circleMarker([lat, lng], {
+        radius: 7,
+        weight: 2,
+        color: 'rgba(233,240,255,0.85)',
+        fillColor: 'rgba(12,16,28,0.9)',
+        fillOpacity: 1,
+      }).addTo(mapState.map);
+      m.bindTooltip(b.label, { direction: 'top' });
+      mapState.baseMarkers.push(m);
+    });
+  }
+
+  function setIncidentMarker(latlng, label) {
+    if (!mapState.map || !latlng) return;
+    try {
+      if (!mapState.incidentMarker) {
+        mapState.incidentMarker = L.marker(latlng).addTo(mapState.map);
+      } else {
+        mapState.incidentMarker.setLatLng(latlng);
+      }
+      if (label) mapState.incidentMarker.bindTooltip(label, { direction: 'top' });
+      mapState.map.panTo(latlng, { animate: true, duration: 0.6 });
+    } catch {}
+  }
 
   // ----------------------------
   // UI Dinâmico
@@ -508,6 +599,7 @@
         agency: "police",
         difficulty: "normal",
         cityId: "br_sp",
+        mode: "career",
       },
     };
   }
@@ -556,6 +648,7 @@
           agency: state.agency,
           difficulty: state.difficulty,
           cityId: state.cityId,
+          mode: state.mode,
         },
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
@@ -954,6 +1047,7 @@
     shiftActive: false,
     pauseQueueWhileActiveCall: true,
     difficulty: "normal",
+    mode: "career", // career | sandbox
     agency: "police",
     cityId: null,
 
@@ -1069,6 +1163,11 @@
     if (view === "shift" && el.screenShift) el.screenShift.classList.add("active");
     // Keep it feeling like a proper app screen
     window.scrollTo({ top: 0, behavior: "auto" });
+
+    // Stage 7A: map is only needed on the shift screen
+    if (view === "shift") {
+      try { ensureMap(); } catch {}
+    }
   }
 
   function refreshLobbySummary() {
@@ -1076,7 +1175,8 @@
     const city = cityNameById(state.cityId);
     const agency = state.agency === "fire" ? "Bombeiros" : "Polícia";
     const diff = state.difficulty === "easy" ? "Fácil" : state.difficulty === "hard" ? "Difícil" : "Normal";
-    el.lobbySummary.innerHTML = `<b>${agency}</b> • ${city} • Dificuldade: ${diff}`;
+    const mode = state.mode === "sandbox" ? "Sandbox" : "Carreira";
+    el.lobbySummary.innerHTML = `<b>${agency}</b> • ${city} • Dificuldade: ${diff} • Modo: ${mode}`;
     if (el.shiftSummaryTop) el.shiftSummaryTop.innerHTML = el.lobbySummary.innerHTML;
   }
 
@@ -1201,6 +1301,7 @@
   }
 
   function isRoleUnlocked(role) {
+    if (state.mode === "sandbox") return true;
     const unlocked = new Set(Array.isArray(state.progress?.unlockedUnitRoles) ? state.progress.unlockedUnitRoles : []);
     return unlocked.has(String(role || ""));
   }
@@ -1474,6 +1575,20 @@
     return m ? m[1].trim() : "—";
   }
 
+  function stripOpenerPrefix(text, opener) {
+    const t = String(text || "").trim();
+    const o = String(opener || "").trim();
+    if (!t || !o) return t;
+    // Normalize spaces and punctuation for a forgiving match
+    const norm = (s) => s.toLowerCase().replace(/\s+/g, " ").trim();
+    if (norm(t).startsWith(norm(o))) {
+      let out = t.slice(o.length).trim();
+      out = out.replace(/^[:\-–—]+\s*/, "");
+      return out.trim();
+    }
+    return t;
+  }
+
   function appendTranscript(call, speaker, text) {
     if (!call) return;
     if (!Array.isArray(call.transcript)) call.transcript = [];
@@ -1622,7 +1737,7 @@
     const citiesAll = getCities();
     // If current selection is not unlocked (e.g., after data update), keep it available
     if (state.cityId) unlocked.add(state.cityId);
-    let cities = citiesAll.filter((c) => unlocked.has(c.id));
+    let cities = (state.mode === "sandbox") ? citiesAll : citiesAll.filter((c) => unlocked.has(c.id));
     // Safety: if unlock IDs don't match current dataset, don't soft-lock the player
     if (!cities.length) cities = citiesAll;
     if (!el.citySelect) return;
@@ -1645,10 +1760,15 @@
     const eff = state.effects || computeUpgradeEffects();
     const baseSev = (def.baseSeverity || "leve").toLowerCase();
     const worsenMult = typeof eff.worsenTimeMult === "number" ? eff.worsenTimeMult : 1.0;
+    const loc = (typeof window.pickIncidentLocation === 'function')
+      ? window.pickIncidentLocation(state.cityId)
+      : { address: "Localização indisponível", district: "—", latlng: null };
+
     return {
       uid: `call_${uidCounter}_${Date.now()}`,
       def,
       severity: baseSev,
+      location: loc,
       confidenceTrote: baseSev === "trote" ? 2 : 0,
 
       queueTTL: queueTTLBySeverity(baseSev, state.difficulty),
@@ -1669,6 +1789,9 @@
       asked: {},
       dispatchUnlocked: false,
       startedAt: state.timeSec,
+
+      // Stage 7A: geo/address
+      location: loc,
     };
   }
 
@@ -1800,7 +1923,11 @@
 
     // Append-only conversation: add the operator question and the caller answer
     // as new lines. This avoids repeating the greeting on every interaction.
-    appendTranscript(state.activeCall, "op", q.prompt);
+    // Some legacy prompt strings accidentally include the line greeting.
+    // Strip it so the operator doesn't repeat "190/911, ..." every turn.
+    const opener = getCityOpener(state.cityId, state.agency);
+    const cleanPrompt = stripOpenerPrefix(String(q.prompt || ""), opener);
+    appendTranscript(state.activeCall, "op", cleanPrompt || q.prompt);
     appendTranscript(state.activeCall, "caller", q.answer || "(sem resposta)" );
 
     log(`🧾 Perguntou: ${q.label} (+1)`);
@@ -2040,7 +2167,16 @@
     const openerNow = getCityOpener(state.cityId, state.agency);
     const line = parseLineFromOpener(openerNow);
     const tp = typingProfileForCall(def, c.severity);
-    el.callMeta.textContent = `Linha: ${line} • Caso: ${def.title} • Gravidade: ${humanSeverity(c.severity)} • Estado: ${tp.callerState}`;
+    const addr = c.location && c.location.address ? c.location.address : "(endereço não informado)";
+    el.callMeta.textContent = `Linha: ${line} • Caso: ${def.title} • Gravidade: ${humanSeverity(c.severity)} • Estado: ${tp.callerState} • Local: ${addr}`;
+
+    // Stage 7A: map marker for active incident
+    try {
+      ensureMap();
+      if (c.location && c.location.latlng) {
+        setIncidentMarker(c.location.latlng, def.title);
+      }
+    } catch {}
 
     // Build conversation strictly from the transcript (append-only).
     // IMPORTANT: do not inject dynamic hint text here, otherwise incremental
@@ -2814,6 +2950,18 @@
       });
     }
 
+    if (el.modeSelect) {
+      el.modeSelect.addEventListener("change", () => {
+        state.mode = el.modeSelect.value || "career";
+        log(`🕹️ Modo: ${state.mode === "sandbox" ? "Sandbox" : "Carreira"}`);
+        // Refresh city list because unlock rules change
+        populateCities();
+        refreshLobbySummary();
+        renderUnits();
+        saveProfile();
+      });
+    }
+
     if (el.btnStartShift) el.btnStartShift.addEventListener("click", startShift);
     if (el.btnEndShift) el.btnEndShift.addEventListener("click", endShift);
 
@@ -2835,6 +2983,7 @@
   // Init
   // ----------------------------
   function init() {
+    setBuildStamp();
     bindDynamicUI();
 
     // Stage 5: load optional DLC packs (non-blocking)
@@ -2852,11 +3001,13 @@
     state.agency = p.settings.agency;
     state.difficulty = p.settings.difficulty;
     state.cityId = p.settings.cityId;
+    state.mode = p.settings.mode || "career";
 
     populateCities();
     if (el.agencySelect) el.agencySelect.value = state.agency || "police";
     if (el.difficultySelect) el.difficultySelect.value = state.difficulty || "normal";
     if (el.citySelect) el.citySelect.value = state.cityId;
+    if (el.modeSelect) el.modeSelect.value = state.mode || "career";
 
     if (el.btnEndShift) el.btnEndShift.disabled = true;
 
