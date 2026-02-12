@@ -33,6 +33,24 @@
     return arr[Math.floor(Math.random() * arr.length)];
   }
 
+  // Weighted random helper for call pools (supports def.weight).
+  function weightedRandom(arr) {
+    if (!arr || !arr.length) return null;
+    let total = 0;
+    for (const it of arr) {
+      const w = typeof it.weight === "number" ? it.weight : 1;
+      total += Math.max(0, w);
+    }
+    if (total <= 0) return safeRandom(arr);
+    let r = Math.random() * total;
+    for (const it of arr) {
+      const w = typeof it.weight === "number" ? it.weight : 1;
+      r -= Math.max(0, w);
+      if (r <= 0) return it;
+    }
+    return arr[arr.length - 1];
+  }
+
   // ----------------------------
   // Typewriter (mais humano + token + skip)
   // ----------------------------
@@ -312,15 +330,19 @@
 
   const UNLOCKS_BY_RANK = {
     // These IDs must match data/cities.js
-    Recruta: ["br_sp"],
-    Operador: ["br_df"],
-    "Sênior": ["eu_ldn"],
-    Supervisor: ["us_nyc"],
+    // Start with a small but international selection so the game does not
+    // feel like it's only São Paulo.
+    Recruta: ["br_sp", "br_rio", "us_nyc", "eu_ldn"],
+    Operador: ["br_df", "us_lax", "jp_tokyo"],
+    "Sênior": ["fr_paris", "de_berlin"],
+    Supervisor: ["it_rome", "ca_toronto"],
   };
 
   // Stage 5: unit roles unlocked by progression. These roles must match the
   // roles used by getUnitsFor(...)
   const UNIT_ROLE_UNLOCKS_BY_RANK = {
+    // Engine roles (internal). Content roles (patrol/tactical/...) are mapped
+    // to these via ROLE_MAP_CONTENT_TO_ENGINE.
     Recruta: ["area_patrol", "fire_engine", "fire_rescue", "medic_ambulance"],
     Operador: ["civil_investigation", "ladder_truck"],
     "Sênior": ["tactical_rota", "shock_riot"],
@@ -507,6 +529,15 @@
       if (!Array.isArray(p.upgrades.owned)) p.upgrades.owned = [];
       if (typeof p.upgrades.spent !== "number") p.upgrades.spent = 0;
       if (!p.settings) p.settings = defaultProfile().settings;
+
+      // Migration/consistency: guarantee the player has unlocked everything up
+      // to their current rank (prevents old saves from showing only São Paulo).
+      const rank = (p.career && p.career.rank) ? p.career.rank : "Recruta";
+      const minCities = allUnlocksUpToRank(rank);
+      p.progress.unlockedCities = Array.from(new Set([...(p.progress.unlockedCities || []), ...minCities]));
+
+      const minRoles = allUnitRoleUnlocksUpToRank(rank);
+      p.progress.unlockedUnitRoles = Array.from(new Set([...(p.progress.unlockedUnitRoles || []), ...minRoles]));
       return p;
     } catch {
       return defaultProfile();
@@ -1274,50 +1305,247 @@
   }
 
   // ----------------------------
+  // Conversa (transcript) — evita repetir a abertura a cada pergunta
+  // ----------------------------
+  function getCityDef(cityId) {
+    const cities = getCities();
+    return cities.find((c) => c && c.id === cityId) || null;
+  }
+
+  function getCityOpener(cityId, agency) {
+    const city = getCityDef(cityId);
+    if (city) {
+      const t = agency === "fire" ? city.greetingFire : city.greetingPolice;
+      if (t) return String(t);
+    }
+    // fallback
+    return defaultOpener("BR", agency);
+  }
+
+  function pickOpening(def) {
+    if (!def) return "";
+    // 1) Prefer explicit openings provided by content
+    const o = def.opening;
+    if (Array.isArray(o) && o.length) return String(o[Math.floor(Math.random() * o.length)]);
+    if (typeof o === "string" && o.trim()) return o.trim();
+
+    // 2) Auto-generate a more "real" caller first line.
+    // We avoid showing the call title to the player (it breaks immersion).
+    const title = String(def.title || "");
+    const t = title.toLowerCase();
+    const sev = String(def.baseSeverity || "leve").toLowerCase();
+    const agency = String(def.agency || "police").toLowerCase();
+
+    function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+    // Trote / prank
+    if (sev === "trote") {
+      return pick([
+        "Ah... era só um teste.",
+        "Foi engano, não tem nada aqui.",
+        "Não aconteceu nada... só queria ver se atendia.",
+      ]);
+    }
+
+    // POLICE patterns
+    if (agency === "police") {
+      if (/(roubo|assalto)\b/.test(t)) {
+        return pick([
+          "Tá acontecendo um roubo agora!",
+          "Estão assaltando aqui, é urgente!",
+          "Fui roubado agora mesmo!",
+        ]);
+      }
+      if (/furto\b/.test(t)) {
+        return pick([
+          "Acabaram de furtar minhas coisas...",
+          "Meu carro foi furtado, por favor!",
+          "Levaram minha bolsa, eu não vi quem foi.",
+        ]);
+      }
+      if (/(tiro|disparo|tiroteio)\b/.test(t)) {
+        return pick([
+          "Eu ouvi tiros! Tem disparo agora!",
+          "Tem gente atirando aqui perto!",
+          "Tiroteio! Eu tô com medo!",
+        ]);
+      }
+      if (/viol(ê|e)ncia\s+dom(é|e)stica|agress(ã|a)o/.test(t)) {
+        return pick([
+          "Tem uma briga aqui em casa, preciso de ajuda...",
+          "Ele tá me ameaçando... por favor, vem rápido.",
+          "Estão agredindo alguém aqui!",
+        ]);
+      }
+      if (/(amea(ç|c)a|sequestro|ref(é|e)ns)/.test(t)) {
+        return pick([
+          "Tem alguém ameaçando uma pessoa aqui!",
+          "Acho que tem reféns, é muito sério!",
+          "Estão mantendo uma pessoa presa, socorro!",
+        ]);
+      }
+      if (/(bomba|pacote\s+suspeito|explos)/.test(t)) {
+        return pick([
+          "Encontraram um pacote suspeito, pode ser bomba!",
+          "Tem uma ameaça de explosivo, por favor!",
+          "Tem um objeto estranho e todo mundo tá assustado.",
+        ]);
+      }
+      if (/(terror|atentad)/.test(t)) {
+        return pick([
+          "Tem uma ameaça grave aqui, parece ataque...",
+          "Alguém falou em atentado, tô em pânico!",
+          "Situação muito séria, preciso de polícia agora!",
+        ]);
+      }
+      if (/(som\s+alto|perturba|barulho)/.test(t)) {
+        return pick([
+          "O vizinho tá com som altíssimo há horas!",
+          "Não dá pra dormir, barulho muito alto aqui.",
+          "Tem uma festa com som alto e confusão.",
+        ]);
+      }
+      // Generic police opening
+      return pick([
+        "Preciso de uma viatura aqui, é urgente.",
+        "Tem um problema aqui e eu preciso da polícia.",
+        "Eu preciso de ajuda, é uma ocorrência.",
+      ]);
+    }
+
+    // FIRE / EMS patterns
+    if (/(inc(ê|e)ndio|fogo|fuma(ç|c)a)/.test(t)) {
+      return pick([
+        "Tem fogo aqui! Muita fumaça!",
+        "Meu prédio tá pegando fogo!",
+        "Tá saindo fumaça de um apartamento!",
+      ]);
+    }
+    if (/(g(á|a)s|vazamento)/.test(t)) {
+      return pick([
+        "Tá com cheiro forte de gás, acho que tem vazamento!",
+        "Vazamento de gás! Todo mundo evacuando!",
+        "Tem um vazamento e eu tô com medo de explodir.",
+      ]);
+    }
+    if (/(acidente|colis(ã|a)o|capot|atropel)/.test(t)) {
+      return pick([
+        "Teve um acidente sério, tem gente ferida!",
+        "Colisão com vítimas, precisamos de resgate!",
+        "Atropelamento! Precisa de ambulância agora!",
+      ]);
+    }
+    if (/(desabamento|queda|estrutura)/.test(t)) {
+      return pick([
+        "Caiu uma estrutura, tem gente presa!",
+        "Desabamento! Precisamos de resgate!",
+        "Tem gente soterrada, por favor!",
+      ]);
+    }
+    if (/(qu(i|e)mico|produto\s+perigoso|hazmat)/.test(t)) {
+      return pick([
+        "Tem um produto vazando, cheiro muito forte!",
+        "Derramamento químico, risco no local!",
+        "Tem algo tóxico no ar, as pessoas passando mal.",
+      ]);
+    }
+
+    // Generic fire opening
+    return pick([
+      "Preciso dos bombeiros/ambulância agora!",
+      "É uma emergência, preciso de socorro!",
+      "Tem uma situação grave aqui, preciso de ajuda!",
+    ]);
+  }
+
+  function transcriptToText(call) {
+    const t = Array.isArray(call && call.transcript) ? call.transcript : [];
+    if (!t.length) return "";
+    return t
+      .map((m) => {
+        const who = m.speaker === "caller" ? "Chamador" : m.speaker === "system" ? "Sistema" : "Operador";
+        return `${who}: ${m.text}`;
+      })
+      .join("\n\n");
+  }
+
+  function parseLineFromOpener(opener) {
+    const m = String(opener || "").match(/^\s*([^,]+),/);
+    return m ? m[1].trim() : "—";
+  }
+
+  function appendTranscript(call, speaker, text) {
+    if (!call) return;
+    if (!Array.isArray(call.transcript)) call.transcript = [];
+    call.transcript.push({ speaker, text: String(text || "").trim() });
+  }
+
+  // Map roles from content (calls/cities) to internal engine roles.
+  // This keeps data files human-friendly (patrol/tactical/bomb...) while
+  // the engine can still have fine-grained roles (area_patrol, bomb_gate...).
+  const ROLE_MAP_CONTENT_TO_ENGINE = {
+    police: {
+      patrol: "area_patrol",
+      tactical: "tactical_rota",
+      riot: "shock_riot",
+      bomb: "bomb_gate",
+      air: "air_eagle",
+      investigation: "civil_investigation",
+      federal: "civil_investigation",
+      k9: "area_patrol",
+    },
+    fire: {
+      fire: "fire_engine",
+      rescue: "fire_rescue",
+      special_rescue: "fire_rescue",
+      ems: "medic_ambulance",
+      hazmat: "hazmat",
+      fire_support: "ladder_truck",
+      ladder: "ladder_truck",
+    },
+  };
+
+  function normalizeRoleKey(roleKey, agency) {
+    const a = agency === "fire" ? "fire" : "police";
+    const key = String(roleKey || "").toLowerCase();
+    const m = ROLE_MAP_CONTENT_TO_ENGINE[a] || {};
+    return m[key] || key;
+  }
+
+  // ----------------------------
   // Unidades
   // ----------------------------
   function getUnitsFor(cityId, agency) {
+    // Prefer units defined in the city dataset (real names per city).
+    const city = getCityDef(cityId);
+
+    if (city && city.units && city.units[agency] && Array.isArray(city.units[agency])) {
+      return city.units[agency].map((u) => {
+        const roleTag = String(u.role || "").toLowerCase();
+        const role = normalizeRoleKey(roleTag, agency);
+        return {
+          id: u.id,
+          name: u.name,
+          role,
+          roleTag: roleTag || role,
+          status: "available",
+        };
+      });
+    }
+
+    // Fallback units if a city pack is missing
     if (agency === "police") {
-      if (String(cityId).includes("sp")) {
-        return [
-          { id: "u_area_1", name: "PM Área (VTR)", role: "area_patrol", status: "available" },
-          { id: "u_rota_1", name: "ROTA", role: "tactical_rota", status: "available" },
-          { id: "u_choque_1", name: "Choque", role: "shock_riot", status: "available" },
-          { id: "u_gate_1", name: "GATE (Antibomba)", role: "bomb_gate", status: "available" },
-          { id: "u_aaguia_1", name: "Águia (Helicóptero)", role: "air_eagle", status: "available" },
-          { id: "u_pc_1", name: "Polícia Civil (Investigação)", role: "civil_investigation", status: "available" },
-        ];
-      }
-      if (String(cityId).includes("ny")) {
-        return [
-          { id: "u_patrol_1", name: "Area Patrol", role: "area_patrol", status: "available" },
-          { id: "u_swat_1", name: "SWAT", role: "tactical_rota", status: "available" },
-          { id: "u_federal_1", name: "Federal Unit", role: "civil_investigation", status: "available" },
-          { id: "u_bomb_1", name: "Bomb Squad", role: "bomb_gate", status: "available" },
-          { id: "u_air_1", name: "Air Support", role: "air_eagle", status: "available" },
-        ];
-      }
       return [
-        { id: "u_patrol_1", name: "Polícia de Área", role: "area_patrol", status: "available" },
-        { id: "u_tac_1", name: "Unidade Tática", role: "tactical_rota", status: "available" },
-        { id: "u_invest_1", name: "Investigação", role: "civil_investigation", status: "available" },
-      ];
-    } else {
-      if (String(cityId).includes("sp")) {
-        return [
-          { id: "f_engine_1", name: "Auto Bomba (AB)", role: "fire_engine", status: "available" },
-          { id: "f_rescue_1", name: "Resgate (UR)", role: "fire_rescue", status: "available" },
-          { id: "f_medic_1", name: "Ambulância (USA)", role: "medic_ambulance", status: "available" },
-          { id: "f_haz_1", name: "HazMat", role: "hazmat", status: "available" },
-          { id: "f_ladder_1", name: "Auto Escada", role: "ladder_truck", status: "available" },
-        ];
-      }
-      return [
-        { id: "f_engine_1", name: "Fire Engine", role: "fire_engine", status: "available" },
-        { id: "f_rescue_1", name: "Rescue", role: "fire_rescue", status: "available" },
-        { id: "f_medic_1", name: "Ambulance", role: "medic_ambulance", status: "available" },
+        { id: "u_patrol_1", name: "Patrulha", role: "area_patrol", roleTag: "patrol", status: "available" },
+        { id: "u_tac_1", name: "Unidade Tática", role: "tactical_rota", roleTag: "tactical", status: "available" },
+        { id: "u_invest_1", name: "Investigação", role: "civil_investigation", roleTag: "investigation", status: "available" },
       ];
     }
+    return [
+      { id: "f_engine_1", name: "Fire Engine", role: "fire_engine", roleTag: "fire", status: "available" },
+      { id: "f_rescue_1", name: "Rescue", role: "fire_rescue", roleTag: "rescue", status: "available" },
+      { id: "f_medic_1", name: "Ambulance", role: "medic_ambulance", roleTag: "ems", status: "available" },
+    ];
   }
 
   function renderUnits() {
@@ -1334,7 +1562,7 @@
           return `
         <div class="subCard" style="padding:10px; margin-top:0;">
           <div style="font-weight:900;">${escapeHtml(u.name)}${lockTxt}</div>
-          <div style="font-size:12px; color:rgba(233,240,255,0.65)">role: ${escapeHtml(u.role)}</div>
+          <div style="font-size:12px; color:rgba(233,240,255,0.65)">role: ${escapeHtml(u.roleTag || u.role)} <span style="opacity:.55">(${escapeHtml(u.role)})</span></div>
           <div style="font-size:12px; color:rgba(233,240,255,0.65)">Status: ${statusTxt}</div>
         </div>`;
         })
@@ -1350,7 +1578,7 @@
         `<option value="">Selecione a unidade</option>` +
         state.units
           .filter((u) => u.status === "available" && !u.locked)
-          .map((u) => `<option value="${escapeHtml(u.id)}">${escapeHtml(u.name)} (${escapeHtml(u.role)})</option>`)
+          .map((u) => `<option value="${escapeHtml(u.id)}">${escapeHtml(u.name)} (${escapeHtml(u.roleTag || u.role)})</option>`)
           .join("");
 
       // Restore selection if still available
@@ -1376,6 +1604,11 @@
     const cc = (c.country || "").toUpperCase();
     if (cc === "BR") return "🇧🇷";
     if (cc === "US") return "🇺🇸";
+    if (cc === "GB" || cc === "UK") return "🇬🇧";
+    if (cc === "FR") return "🇫🇷";
+    if (cc === "DE") return "🇩🇪";
+    if (cc === "IT") return "🇮🇹";
+    if (cc === "CA") return "🇨🇦";
     if (cc === "EU") return "🇪🇺";
     if (cc === "JP") return "🇯🇵";
     if (cc === "IN") return "🇮🇳";
@@ -1503,7 +1736,8 @@
     // Increase pressure a bit more when it worsens
     c.callTTL = Math.max(0, c.callTTL - 6);
     log(`⚠️ OCORRÊNCIA AGRAVOU (${reason || "tempo"}). Gravidade agora: ${humanSeverity(c.severity)}.`);
-    renderActiveCall(true);
+    // Update UI/meta without restarting the whole transcript typing.
+    renderActiveCall(false);
   }
 
   function failActiveCall(reason) {
@@ -1564,11 +1798,15 @@
     state.score += 1;
     applyQuestionEffect(q.effect);
 
+    // Append-only conversation: add the operator question and the caller answer
+    // as new lines. This avoids repeating the greeting on every interaction.
+    appendTranscript(state.activeCall, "op", q.prompt);
+    appendTranscript(state.activeCall, "caller", q.answer || "(sem resposta)" );
+
     log(`🧾 Perguntou: ${q.label} (+1)`);
     updateDispatchUnlock();
 
-    renderDynamicQuestions();
-    renderActiveCall(true); // texto mudou -> atualiza (com typewriter humano)
+    // Unified render pass (updates questions, dispatch unlock, transcript, HUD)
     renderAll();
   }
 
@@ -1791,48 +2029,23 @@
     const c = state.activeCall;
     const def = c.def;
 
-    const line = lineByRegion(def.region, state.agency);
+    // Ensure this call has a transcript. This guarantees the opener is only
+    // added once and prevents re-rendering the whole conversation.
+    if (!Array.isArray(c.transcript) || !c.transcript.length) {
+      const opener = getCityOpener(state.cityId, state.agency);
+      appendTranscript(c, "op", opener);
+      appendTranscript(c, "caller", pickOpening(def));
+    }
+
+    const openerNow = getCityOpener(state.cityId, state.agency);
+    const line = parseLineFromOpener(openerNow);
     const tp = typingProfileForCall(def, c.severity);
     el.callMeta.textContent = `Linha: ${line} • Caso: ${def.title} • Gravidade: ${humanSeverity(c.severity)} • Estado: ${tp.callerState}`;
 
-    const opener = defaultOpener(def.region, state.agency);
-    const protocol = getProtocolDef(def);
-
-    // AAA conversation formatting:
-    // - The operator greeting ("190/193/911...") must appear ONLY ONCE.
-    // - The caller must speak with a coherent opening line (not just the case title).
-    // - Subsequent operator prompts must NOT repeat the greeting.
-    let callerOpening = (def && (def.opening || def.callerOpening || def.callerText))
-      ? String(def.opening || def.callerOpening || def.callerText)
-      : String(def.title || "");
-
-    // If older content mistakenly embeds the greeting into the caller opening,
-    // strip the greeting part to avoid repetition.
-    if (callerOpening && callerOpening.startsWith(opener)) {
-      callerOpening = callerOpening.slice(opener.length).trim();
-    }
-    // Common greeting pattern: remove everything up to the first '?' if present.
-    const qidx = callerOpening.indexOf("?");
-    if (qidx >= 0 && qidx < 80) {
-      const tail = callerOpening.slice(qidx + 1).trim();
-      if (tail) callerOpening = tail;
-    }
-
-    let convo = `Operador: ${opener}\n\nChamador: ${callerOpening || def.title}\n\n`;
-
-    const askedIds = Object.keys(c.asked).filter((k) => c.asked[k]);
-    if (askedIds.length) {
-      askedIds.forEach((qid) => {
-        const q = (protocol.questions || []).find((x) => x.id === qid);
-        if (!q) return;
-        convo += `Operador: ${q.prompt}\n`;
-        convo += `Chamador: ${q.answer || "(sem resposta)"}\n\n`;
-      });
-    } else {
-      convo += `*(Você ainda não fez perguntas. Use o painel de protocolo.)*\n\n`;
-    }
-
-    if (def.hint) convo += `[Dica] ${def.hint}\n`;
+    // Build conversation strictly from the transcript (append-only).
+    // IMPORTANT: do not inject dynamic hint text here, otherwise incremental
+    // typewriter can't reliably append.
+    const convo = transcriptToText(c);
 
     const sameCall = state.ui.lastCallUid === c.uid;
     const sameText = state.ui.lastTranscript === convo;
@@ -1874,7 +2087,28 @@
   function pickCallDef() {
     const calls = getCalls();
     const poolByAgency = calls.filter((c) => (c.agency || "police") === state.agency);
-    const pool = poolByAgency.length ? poolByAgency : calls;
+    let pool = poolByAgency.length ? poolByAgency : calls;
+
+    // Fairness filter: only spawn calls that can be solved with at least one
+    // currently unlocked/available unit role (prevents "impossible" calls
+    // early in the career).
+    const unitsNow = (state.units && state.units.length) ? state.units : getUnitsFor(state.cityId, state.agency);
+    const availableRoles = new Set(
+      unitsNow
+        .map((u) => ({ ...u, locked: !isRoleUnlocked(u.role) }))
+        .filter((u) => u.status === "available" && !u.locked)
+        .map((u) => u.role)
+    );
+
+    const feasible = pool.filter((def) => {
+      // trote is always feasible
+      if (String(def.baseSeverity || "").toLowerCase() === "trote") return true;
+      const raw = (def.dispatch && Array.isArray(def.dispatch.correctRoles)) ? def.dispatch.correctRoles : ["any"];
+      if (raw.includes("any")) return true;
+      const norm = raw.map((r) => normalizeRoleKey(r, state.agency));
+      return norm.some((r) => availableRoles.has(r));
+    });
+    if (feasible.length) pool = feasible;
 
     const troteChance = state.difficulty === "easy" ? 0.10 : state.difficulty === "hard" ? 0.18 : 0.15;
     let candidates = pool;
@@ -1884,7 +2118,7 @@
       if (trotes.length) candidates = trotes;
     }
 
-    return safeRandom(candidates);
+    return weightedRandom(candidates);
   }
 
   function spawnCall() {
@@ -2091,9 +2325,9 @@
     updateDispatchUnlock();
     log(`📞 Atendeu: "${state.activeCall.def.title}" (${humanSeverity(state.activeCall.severity)})`);
 
-    renderUnits();
-    renderDynamicQuestions();
-    renderActiveCall(true);
+    // Let the unified renderer handle UI refresh. The call transcript will be
+    // initialized on first render (opener + caller opening) and will not be
+    // retyped on every interaction.
     renderAll();
   }
 
@@ -2202,7 +2436,8 @@
     const def = c.def;
     const severityNow = c.severity;
 
-    const correctRoles = (def.dispatch && Array.isArray(def.dispatch.correctRoles)) ? def.dispatch.correctRoles : ["any"];
+    const correctRolesRaw = (def.dispatch && Array.isArray(def.dispatch.correctRoles)) ? def.dispatch.correctRoles : ["any"];
+    const correctRoles = correctRolesRaw.map((r) => normalizeRoleKey(r, state.agency));
     const isTrote = (severityNow === "trote") || (c.confidenceTrote >= 6);
 
     unit.status = "busy";

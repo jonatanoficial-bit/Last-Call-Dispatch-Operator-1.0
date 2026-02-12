@@ -20,7 +20,10 @@ body {
     radial-gradient(900px 700px at 90% 20%, rgba(255,90,140,0.10), transparent 55%),
     radial-gradient(1200px 900px at 50% 110%, rgba(80,255,210,0.08), transparent 55%),
     linear-gradient(180deg, #070a12, #050711);
-  overflow-x: hidden;
+  /* IMPORTANT: keep the document itself from scrolling.
+     The game uses full-viewport screens; each screen has its own scroll.
+     This fixes the "preciso descer a tela" issue on PC. */
+  overflow: hidden;
 }
 
 /* IMPORTANTÍSSIMO no mobile: remover aparência padrão de botão/select */
@@ -70,20 +73,35 @@ a { color: inherit; text-decoration: none; }
   --bg-url: url('./img/police_bg.png');
 }
 
-/* Layout base */
-.app { width: min(1100px, 100%); margin: 0 auto; padding: 14px 12px 30px; }
+/* Layout base
+   Use a fixed-height app shell so only the active screen scrolls.
+   This makes the experience feel like a real game/app on PC and mobile. */
+.app {
+  width: min(1100px, 100%);
+  margin: 0 auto;
+  padding: 14px 12px 14px;
+  height: 100vh;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
 
 /* Multi-screen flow (Setup -> Lobby -> Plantão)
    Avoids the "scroll down to play" feel on mobile.
    We keep screens mounted and use opacity/pointer-events for smoother
    transitions (cinematic feel) without requiring heavy routing. */
-main{ position: relative; }
+main{ position: relative; flex: 1; overflow: hidden; }
 .screen{
+  position: absolute;
+  inset: 0;
   display: grid;
+  /* Only the active screen should be visible and scrollable */
   opacity: 0;
   pointer-events: none;
   transform: translateY(10px);
   transition: opacity 220ms ease, transform 220ms ease;
+  overflow-y: auto;
+  padding-bottom: calc(14px + env(safe-area-inset-bottom));
 }
 .screen.active{
   opacity: 1;
