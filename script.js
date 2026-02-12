@@ -224,6 +224,8 @@
     baseLayer: null,
     incidentMarker: null,
     baseMarkers: [],
+    unitMarkers: {},
+    unitLayer: null,
     lastCityId: null,
   };
 
@@ -257,6 +259,7 @@
       const center = getCityCenter(state.cityId);
       mapState.map.setView(center, 12);
       renderBasesOnMap();
+      if (state.shiftActive) { try { initUnitSimulation(true); } catch {} }
       if (el.mapHint) el.mapHint.textContent = `Cidade: ${getCityName(state.cityId)} • Bases e incidentes aparecerão aqui.`;
     }
   }
@@ -290,7 +293,200 @@
     });
   }
 
-  function setIncidentMarker(latlng, label) {
+  
+// ----------------------------
+// Stage 7B: Unit simulation (movement + availability) on the map
+// ----------------------------
+function haversineMeters(a, b) {
+  if (!a || !b) return 0;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const R = 6371000;
+  const lat1 = toRad(a[0]), lat2 = toRad(b[0]);
+  const dLat = toRad(b[0] - a[0]);
+  const dLng = toRad(b[1] - a[1]);
+  const s1 = Math.sin(dLat / 2);
+  const s2 = Math.sin(dLng / 2);
+  const h = s1 * s1 + Math.cos(lat1) * Math.cos(lat2) * s2 * s2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+function moveTowards(a, b, metersStep) {
+  if (!a || !b) return a;
+  const dist = haversineMeters(a, b);
+  if (dist <= metersStep || dist <= 2) return [b[0], b[1]];
+  const t = metersStep / dist;
+  // Linear interpolation is good enough for city-scale movement
+  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+}
+
+function unitSpeedMps(unitRole) {
+  // Simple speed classes (no routing): tuned for feel, not realism.
+  const role = String(unitRole || "");
+  if (role === "air_eagle") return 45;        // helicopter/air
+  if (role === "medic_ambulance") return 18;  // ambulance
+  if (role === "fire_rescue") return 16;      // rescue
+  if (role === "fire_engine") return 15;      // engine
+  if (role === "ladder_truck") return 13;     // ladder
+  if (role === "tactical_rota") return 14;    // tactical
+  if (role === "shock_riot") return 12;       // riot
+  if (role === "bomb_gate") return 11;        // bomb disposal
+  return 14; // patrol/default
+}
+
+function ensureUnitLayer() {
+  if (!mapState.map) return;
+  if (!mapState.unitLayer) {
+    mapState.unitLayer = L.layerGroup().addTo(mapState.map);
+  }
+}
+
+function clearUnitMarkers() {
+  if (mapState.unitLayer) {
+    try { mapState.unitLayer.clearLayers(); } catch {}
+  }
+  mapState.unitMarkers = {};
+}
+
+function computeBaseLatLngs() {
+  const center = getCityCenter(state.cityId);
+  return [
+    { id: "base_main", label: state.agency === "fire" ? "Base (Bombeiros)" : "Base (Polícia)", latlng: [center[0] + 0.00, center[1] + 0.00] },
+    { id: "base_2", label: "Base Secundária", latlng: [center[0] + 0.02, center[1] - 0.015] },
+  ];
+}
+
+function initUnitSimulation(force = false) {
+  // Keeps unit state stable across UI re-renders (renderUnits runs every second).
+  if (!state.shiftActive) return;
+  if (state.unitSim && !force && state.unitSim.cityId === state.cityId && state.unitSim.agency === state.agency) return;
+
+  const bases = computeBaseLatLngs();
+  state.unitSim = { cityId: state.cityId, agency: state.agency, bases, units: {} };
+
+  // Create stable unit objects keyed by id
+  (state.units || []).forEach((u, idx) => {
+    const base = bases[idx % bases.length];
+    state.unitSim.units[u.id] = {
+      id: u.id,
+      name: u.name,
+      role: u.role,
+      roleTag: u.roleTag,
+      locked: !!u.locked,
+      status: "available",
+      baseId: base.id,
+      baseLatlng: base.latlng,
+      latlng: base.latlng.slice(),
+      targetLatlng: null,
+      assignedCallUid: null,
+      etaTotal: null,
+      etaRemaining: null,
+      onSceneRemaining: 0,
+    };
+  });
+
+  // Reflect on base markers too
+  try { renderBasesOnMap(); } catch {}
+  try { renderUnitsOnMap(); } catch {}
+}
+
+function unitMarkerStyle(u) {
+  const isFire = state.agency === "fire";
+  // Use agency color as border; status changes fill intensity.
+  const stroke = isFire ? "rgba(255,90,90,0.95)" : "rgba(90,160,255,0.95)";
+  const fill =
+    u.status === "available" ? "rgba(12,16,28,0.95)" :
+    u.status === "enroute" ? "rgba(255,210,90,0.95)" :
+    u.status === "onscene" ? "rgba(120,255,170,0.95)" :
+    u.status === "returning" ? "rgba(233,240,255,0.90)" :
+    "rgba(160,160,160,0.9)";
+  return { stroke, fill };
+}
+
+function renderUnitsOnMap() {
+  if (!mapState.map) return;
+  ensureUnitLayer();
+  clearUnitMarkers();
+
+  const sim = state.unitSim;
+  if (!sim) return;
+
+  Object.values(sim.units).forEach((u) => {
+    const st = unitMarkerStyle(u);
+    const marker = L.circleMarker(u.latlng, {
+      radius: 6,
+      weight: 2,
+      color: st.stroke,
+      fillColor: st.fill,
+      fillOpacity: 1,
+    });
+    marker.addTo(mapState.unitLayer);
+    marker.bindTooltip(`${u.name}`, { direction: "top" });
+    mapState.unitMarkers[u.id] = marker;
+  });
+}
+
+function updateUnitMarkers() {
+  if (!mapState.map || !state.unitSim) return;
+  Object.values(state.unitSim.units).forEach((u) => {
+    const m = mapState.unitMarkers[u.id];
+    if (!m) return;
+    try {
+      m.setLatLng(u.latlng);
+      const st = unitMarkerStyle(u);
+      m.setStyle({ color: st.stroke, fillColor: st.fill });
+    } catch {}
+  });
+}
+
+function updateUnitSimulationTick() {
+  if (!state.shiftActive || !state.unitSim) return;
+
+  const sim = state.unitSim;
+  const etaMult = state.effects && typeof state.effects.etaMult === "number" ? state.effects.etaMult : 1.0;
+  const lateMargin = state.effects && typeof state.effects.lateMarginSec === "number" ? state.effects.lateMarginSec : 0;
+
+  Object.values(sim.units).forEach((u) => {
+    if (u.locked) return;
+
+    if (u.status === "enroute" && u.targetLatlng) {
+      const speed = unitSpeedMps(u.role) / Math.max(0.75, etaMult);
+      u.latlng = moveTowards(u.latlng, u.targetLatlng, speed);
+      if (typeof u.etaRemaining === "number") u.etaRemaining = Math.max(0, u.etaRemaining - 1);
+
+      const arrived = haversineMeters(u.latlng, u.targetLatlng) <= 8 || u.etaRemaining == 0;
+      if (arrived) {
+        u.latlng = [u.targetLatlng[0], u.targetLatlng[1]];
+        u.status = "onscene";
+        u.onSceneRemaining = 6 + Math.floor(Math.random() * 6);
+        if (state.activeCall && state.activeCall.uid === u.assignedCallUid && state.activeCall.dispatchInfo) {
+          finalizeDispatchOnArrival(state.activeCall, u, lateMargin);
+        }
+      }
+    } else if (u.status === "onscene") {
+      u.onSceneRemaining = Math.max(0, (u.onSceneRemaining || 0) - 1);
+      if (u.onSceneRemaining <= 0) {
+        u.status = "returning";
+        u.targetLatlng = u.baseLatlng;
+      }
+    } else if (u.status === "returning" && u.targetLatlng) {
+      const speed = unitSpeedMps(u.role) / Math.max(0.75, etaMult);
+      u.latlng = moveTowards(u.latlng, u.targetLatlng, speed);
+      const arrived = haversineMeters(u.latlng, u.targetLatlng) <= 8;
+      if (arrived) {
+        u.latlng = [u.baseLatlng[0], u.baseLatlng[1]];
+        u.status = "available";
+        u.targetLatlng = null;
+        u.assignedCallUid = null;
+        u.etaTotal = null;
+        u.etaRemaining = null;
+      }
+    }
+  });
+
+  updateUnitMarkers();
+}
+
+function setIncidentMarker(latlng, label) {
     if (!mapState.map || !latlng) return;
     try {
       if (!mapState.incidentMarker) {
@@ -1668,6 +1864,14 @@
 
     // Apply progression locks by role (Stage 5)
     state.units = state.units.map((u) => ({ ...u, locked: !isRoleUnlocked(u.role) }));
+    // Stage 7B: if a unit simulation exists, keep its status/position stable
+    if (state.unitSim && state.unitSim.units && state.unitSim.cityId === state.cityId && state.unitSim.agency === state.agency) {
+      state.units = state.units.map((u) => {
+        const su = state.unitSim.units[u.id];
+        if (!su) return u;
+        return { ...u, status: su.status, locked: !!su.locked };
+      });
+    }
 
     if (el.unitsList) {
       el.unitsList.innerHTML = state.units
@@ -2064,10 +2268,10 @@
     if (el.btnAnswer) el.btnAnswer.disabled = !(hasShift && !hasActive && hasQueue);
     if (el.btnHold) el.btnHold.disabled = !(hasShift && hasActive);
 
-    const canDispatch = hasShift && hasActive && state.activeCall.dispatchUnlocked;
+    const canDispatch = hasShift && hasActive && state.activeCall.dispatchUnlocked && !state.activeCall.dispatched;
     if (el.dispatchUnitSelect) el.dispatchUnitSelect.disabled = !canDispatch;
     if (el.btnDispatch) el.btnDispatch.disabled = !canDispatch;
-    if (el.btnDismiss) el.btnDismiss.disabled = !(hasShift && hasActive);
+    if (el.btnDismiss) el.btnDismiss.disabled = !(hasShift && hasActive) || (state.activeCall && state.activeCall.dispatched);
   }
 
   function renderQueue() {
@@ -2210,113 +2414,18 @@
       typewriter(el.callText, convo, twOpts);
     }
 
-    if (el.dispatchInfo) {
-      el.dispatchInfo.textContent = c.dispatchUnlocked
-        ? `Despacho liberado. Selecione a unidade e despache.`
-        : `Despacho bloqueado. Faça as perguntas obrigatórias primeiro.`;
-    }
+    
+if (el.dispatchInfo) {
+  if (c.dispatchInfo && c.dispatched) {
+    const etaR = typeof c.dispatchInfo.etaRemaining === "number" ? fmtTime(c.dispatchInfo.etaRemaining) : "—";
+    const etaT = typeof c.dispatchInfo.etaTotal === "number" ? fmtTime(c.dispatchInfo.etaTotal) : "—";
+    el.dispatchInfo.textContent = `📡 Unidade a caminho: ${c.dispatchInfo.unitName} • ETA ${etaR}/${etaT}`;
+  } else {
+    el.dispatchInfo.textContent = c.dispatchUnlocked
+      ? `Despacho liberado. Selecione a unidade e despache.`
+      : `Despacho bloqueado. Faça as perguntas obrigatórias primeiro.`;
   }
-
-  // ----------------------------
-  // Seleção de caso
-  // ----------------------------
-  function pickCallDef() {
-    const calls = getCalls();
-    const poolByAgency = calls.filter((c) => (c.agency || "police") === state.agency);
-    let pool = poolByAgency.length ? poolByAgency : calls;
-
-    // Fairness filter: only spawn calls that can be solved with at least one
-    // currently unlocked/available unit role (prevents "impossible" calls
-    // early in the career).
-    const unitsNow = (state.units && state.units.length) ? state.units : getUnitsFor(state.cityId, state.agency);
-    const availableRoles = new Set(
-      unitsNow
-        .map((u) => ({ ...u, locked: !isRoleUnlocked(u.role) }))
-        .filter((u) => u.status === "available" && !u.locked)
-        .map((u) => u.role)
-    );
-
-    const feasible = pool.filter((def) => {
-      // trote is always feasible
-      if (String(def.baseSeverity || "").toLowerCase() === "trote") return true;
-      const raw = (def.dispatch && Array.isArray(def.dispatch.correctRoles)) ? def.dispatch.correctRoles : ["any"];
-      if (raw.includes("any")) return true;
-      const norm = raw.map((r) => normalizeRoleKey(r, state.agency));
-      return norm.some((r) => availableRoles.has(r));
-    });
-    if (feasible.length) pool = feasible;
-
-    const troteChance = state.difficulty === "easy" ? 0.10 : state.difficulty === "hard" ? 0.18 : 0.15;
-    let candidates = pool;
-
-    if (Math.random() < troteChance) {
-      const trotes = pool.filter((c) => String(c.baseSeverity).toLowerCase() === "trote");
-      if (trotes.length) candidates = trotes;
-    }
-
-    return weightedRandom(candidates);
-  }
-
-  function spawnCall() {
-    if (!state.shiftActive) return;
-    if (state.queue.length >= state.maxQueue) return;
-
-    const def = pickCallDef();
-    if (!def) return;
-
-    const inst = makeCallInstance(def);
-    state.queue.push(inst);
-
-    log(`🚨 Nova chamada: "${def.title}" (${humanSeverity(inst.severity)})`);
-  }
-
-  // ----------------------------
-  // Stage 5: Eventos especiais (cinematográficos)
-  // ----------------------------
-  function pickSpecialEvent() {
-    const diff = state.difficulty || "normal";
-    const weekend = (state.campaign?.day || 1) >= 6;
-    const storm = state.conditions.weather === "storm";
-
-    let chance = 0.12;
-    if (diff === "hard") chance += 0.08;
-    if (diff === "easy") chance -= 0.04;
-    if (storm) chance += 0.10;
-    if (weekend) chance += 0.06;
-    chance = clamp(chance, 0.05, 0.35);
-
-    if (Math.random() > chance) return null;
-
-    const policePool = [
-      { id: "pol_shots", name: "🚨 Tiroteio em andamento", spawnMult: 0.75, stressBoost: 0.10 },
-      { id: "pol_hostage", name: "🏦 Assalto com reféns", spawnMult: 0.80, stressBoost: 0.08 },
-      { id: "pol_riot", name: "🛡️ Distúrbio violento", spawnMult: 0.78, stressBoost: 0.09 },
-    ];
-    const firePool = [
-      { id: "fire_ind", name: "🔥 Incêndio industrial", spawnMult: 0.80, stressBoost: 0.08 },
-      { id: "fire_gas", name: "🧯 Vazamento de gás em massa", spawnMult: 0.78, stressBoost: 0.09 },
-      { id: "fire_mci", name: "🚑 Múltiplas vítimas", spawnMult: 0.75, stressBoost: 0.10 },
-    ];
-
-    const pool = state.agency === "fire" ? firePool : policePool;
-    return pool[Math.floor(Math.random() * pool.length)];
-  }
-
-  // ----------------------------
-  // Resultado real (modelo)
-  // ----------------------------
-  function computeOutcome({ isTrote, correctRole, overdue, severity }) {
-    const s = String(severity || "leve").toLowerCase();
-
-    if (isTrote) {
-      return {
-        outcome: "trote",
-        outcomeLabel: "TROTE",
-        description: "Chamado falso/indevido. Recursos não devem ser mobilizados.",
-        livesSaved: 0,
-        penalty: true,
-      };
-    }
+}
 
     if (!correctRole) {
       let desc = "Despacho incorreto. Resposta inadequada gerou falha operacional.";
@@ -2401,6 +2510,10 @@
     if (el.btnEndShift) el.btnEndShift.disabled = false;
 
     renderUnits();
+
+    // Stage 7B: init map + unit simulation
+    try { ensureMap(); } catch {}
+    try { initUnitSimulation(true); } catch {}
 
     log(`✅ Turno iniciado em ${flagByCityId(state.cityId)} ${cityNameById(state.cityId)} • Agência: ${state.agency} • Dificuldade: ${state.difficulty}`);
     log(`🌒 Condições: ${state.conditions.timeOfDay === "night" ? "Noite" : "Dia"} • ${state.conditions.weather === "storm" ? "Tempestade" : state.conditions.weather === "rain" ? "Chuva" : "Céu limpo"}`);
@@ -2544,174 +2657,103 @@
     renderAll();
   }
 
-  function dispatchSelectedUnit() {
-    if (!state.shiftActive || !state.activeCall) return;
+  
+function dispatchSelectedUnit() {
+  if (!state.shiftActive || !state.activeCall) return;
 
-    // se estiver digitando, pula
-    skipTypewriter(el.callText);
+  // se estiver digitando, pula
+  skipTypewriter(el.callText);
 
-    const c = state.activeCall;
+  const c = state.activeCall;
 
-    if (!c.dispatchUnlocked) {
-      log("⛔ Despacho bloqueado: faça as perguntas obrigatórias.");
-      return;
-    }
-
-    const unitId = el.dispatchUnitSelect ? el.dispatchUnitSelect.value : "";
-    if (!unitId) {
-      log("⚠️ Selecione uma unidade primeiro.");
-      return;
-    }
-
-    const unit = state.units.find((u) => u.id === unitId);
-    if (!unit || unit.status !== "available") {
-      log("⚠️ Unidade inválida/indisponível.");
-      return;
-    }
-
-    const def = c.def;
-    const severityNow = c.severity;
-
-    const correctRolesRaw = (def.dispatch && Array.isArray(def.dispatch.correctRoles)) ? def.dispatch.correctRoles : ["any"];
-    const correctRoles = correctRolesRaw.map((r) => normalizeRoleKey(r, state.agency));
-    const isTrote = (severityNow === "trote") || (c.confidenceTrote >= 6);
-
-    unit.status = "busy";
-    setTimeout(() => {
-      unit.status = "available";
-      renderUnits();
-      renderAll();
-    }, 5000);
-
-    state.stats.dispatched += 1;
-
-    if (c.overdue && !c.overduePenalized) {
-      c.overduePenalized = true;
-      state.stats.overtime += 1;
-    }
-
-    const correctRole = !isTrote && (correctRoles.includes(unit.role) || correctRoles.includes("any"));
-
-    // Stage 6: simulate response time (ETA) without a map. Upgrades can reduce ETA.
-    const ROLE_ETA_BASE = {
-      area_patrol: 24,
-      civil_investigation: 32,
-      tactical_rota: 34,
-      shock_riot: 36,
-      air_eagle: 18,
-      bomb_gate: 40,
-      fire_engine: 28,
-      ladder_truck: 34,
-      fire_rescue: 26,
-      medic_ambulance: 22,
-      hazmat: 42,
-    };
-    const etaBase = ROLE_ETA_BASE[unit.role] || 28;
-    const etaMult = state.effects && typeof state.effects.etaMult === "number" ? state.effects.etaMult : 1.0;
-    const etaRand = Math.floor(Math.random() * 7); // 0..6
-    const eta = Math.max(8, Math.round(etaBase * etaMult) + etaRand);
-    const remaining = Math.max(0, c.callTTL || 0);
-    const lateMargin = state.effects && typeof state.effects.lateMarginSec === "number" ? state.effects.lateMarginSec : 0;
-    const responseLate = remaining < eta;
-    const responseTooLate = remaining + lateMargin < eta;
-
-    let outcome = computeOutcome({
-      isTrote,
-      correctRole,
-      overdue: c.overdue || responseLate,
-      severity: severityNow,
-    });
-
-    // If the response would arrive after the fail timer (too late), treat as fail even if role was correct.
-    if (!isTrote && correctRole && responseTooLate) {
-      outcome = {
-        outcome: "fail",
-        outcomeLabel: "CHEGOU TARDE",
-        description: "A unidade correta foi mobilizada, porém o tempo de resposta foi insuficiente. Consequências graves.",
-        livesSaved: 0,
-        penalty: true,
-      };
-    }
-
-    let scoreDelta = 0;
-    let xpDelta = 0;
-
-    if (outcome.outcome === "trote") {
-      scoreDelta = -12;
-      xpDelta = -2;
-      state.stats.wrong += 1;
-      addWarning("Despacho indevido em trote.");
-    } else if (outcome.outcome === "fail") {
-      scoreDelta = -12;
-      xpDelta = -3;
-      state.stats.wrong += 1;
-      addWarning("Despacho incorreto (falha operacional).");
-      state.career.totalFail += 1;
-    } else if (outcome.outcome === "partial") {
-      scoreDelta = Math.max(4, severityScore(severityNow) - 10);
-      scoreDelta -= 5;
-      xpDelta = 3;
-      state.stats.correct += 1;
-      state.career.totalSuccess += 1;
-    } else {
-      scoreDelta = severityScore(severityNow);
-      xpDelta = severityNow === "grave" ? 8 : 5;
-      state.stats.correct += 1;
-      state.career.totalSuccess += 1;
-    }
-
-    if (outcome.livesSaved > 0) {
-      state.career.totalLivesSaved += outcome.livesSaved;
-      state.stats.livesSaved += outcome.livesSaved;
-      scoreDelta += 6;
-      xpDelta += 4;
-    }
-
-    // Stage 6: upgrades can boost scoring on high-severity cases
-    const sevLower = String(severityNow).toLowerCase();
-    if ((sevLower === "grave" || sevLower === "critico") && (outcome.outcome === "success" || outcome.outcome === "partial")) {
-      const m = state.effects && typeof state.effects.graveScoreMult === "number" ? state.effects.graveScoreMult : 1.0;
-      scoreDelta = Math.round(scoreDelta * m);
-    }
-
-    if (!isTrote && c.overdue && String(severityNow).toLowerCase() === "grave") {
-      addWarning("Atraso crítico em ocorrência GRAVE.");
-    }
-
-    state.score += scoreDelta;
-    addXp(xpDelta);
-
-    if (outcome.outcome === "success") log(`✅ SUCESSO: despacho correto (+${scoreDelta}) XP +${xpDelta}`);
-    if (outcome.outcome === "partial") log(`⚠️ ${outcome.outcomeLabel}: (+${scoreDelta}) XP +${xpDelta}`);
-    if (outcome.outcome === "fail") log(`❌ FALHA: (${scoreDelta}) XP ${xpDelta}`);
-    if (outcome.outcome === "trote") log(`❌ TROTE: despacho indevido (${scoreDelta}) XP ${xpDelta}`);
-
-    setReport({
-      title: def.title,
-      severity: severityNow,
-      outcomeLabel: outcome.outcomeLabel,
-      description: outcome.description + ` (ETA: ${fmtTime(eta)})` + (outcome.livesSaved ? ` (Vidas salvas: ${outcome.livesSaved})` : ""),
-      unitName: unit.name,
-      unitRole: unit.role,
-      scoreDelta,
-      xpDelta,
-      handleTime: state.timeSec - c.startedAt,
-    });
-
-    state.activeCall = null;
-    state.ui.lastCallUid = null;
-    state.ui.lastTranscript = "";
-
-    renderAll();
+  if (c.dispatched) {
+    log("📡 Unidade já em deslocamento para esta ocorrência.");
+    return;
   }
 
-  // ----------------------------
-  // Tick
+  if (!c.dispatchUnlocked) {
+    log("⛔ Despacho bloqueado: faça as perguntas obrigatórias.");
+    return;
+  }
+
+  const unitId = el.dispatchUnitSelect ? el.dispatchUnitSelect.value : "";
+  if (!unitId) {
+    log("⚠️ Selecione uma unidade primeiro.");
+    return;
+  }
+
+  const sim = state.unitSim && state.unitSim.units ? state.unitSim.units[unitId] : null;
+  const unit = sim || (state.units || []).find((u) => u.id === unitId);
+
+  if (!unit || unit.status !== "available") {
+    log("⚠️ Unidade inválida/indisponível.");
+    return;
+  }
+  if (unit.locked) {
+    log("🔒 Unidade bloqueada pela carreira/operação.");
+    return;
+  }
+
+  const target = c.location && c.location.latlng ? c.location.latlng : null;
+  if (!target || !Array.isArray(target)) {
+    log("⚠️ Sem coordenadas para simular deslocamento. (Falha de geo)");
+    return;
+  }
+
+  const baseLatlng = unit.latlng || (unit.baseLatlng ? unit.baseLatlng : getCityCenter(state.cityId));
+  const dist = haversineMeters(baseLatlng, target);
+  const speed = unitSpeedMps(unit.role);
+  const etaMult = state.effects && typeof state.effects.etaMult === "number" ? state.effects.etaMult : 1.0;
+  const rand = 0.85 + Math.random() * 0.45;
+  const eta = Math.max(8, Math.round((dist / Math.max(4, speed)) * etaMult * rand));
+
+  unit.status = "enroute";
+  unit.targetLatlng = target;
+  unit.assignedCallUid = c.uid;
+  unit.etaTotal = eta;
+  unit.etaRemaining = eta;
+
+  c.dispatched = true;
+  c.dispatchInfo = {
+    unitId,
+    unitName: unit.name,
+    unitRole: unit.role,
+    etaTotal: eta,
+    etaRemaining: eta,
+    remainingAtDispatch: Math.max(0, c.callTTL || 0),
+    dispatchedAt: state.timeSec,
+  };
+
+  state.stats.dispatched += 1;
+
+  try { ensureMap(); } catch {}
+  try { setIncidentMarker(target, `${c.def.title}`); } catch {}
+  try { updateUnitMarkers(); } catch {}
+
+  log(`🚓 Despachado: ${unit.name} (${unit.roleTag || unit.role}) • ETA ~ ${fmtTime(eta)} • Endereço: ${c.location && c.location.address ? c.location.address : "—"}`);
+
+  renderUnits();
+  renderAll();
+}
+
+// ----------------------------
+// Tick
   // ----------------------------
   function tick() {
     if (!state.shiftActive) return;
 
     state.timeSec += 1;
+
+    // Stage 7B: update unit movement (map)
+    try { updateUnitSimulationTick(); } catch {}
+
+    // Sync dispatch ETA UI while a unit is enroute
+    if (state.activeCall && state.activeCall.dispatchInfo && state.unitSim && state.unitSim.units) {
+      const u = state.unitSim.units[state.activeCall.dispatchInfo.unitId];
+      if (u && typeof u.etaRemaining === "number") {
+        state.activeCall.dispatchInfo.etaRemaining = u.etaRemaining;
+      }
+    }
 
     const hasActive = !!state.activeCall;
     const pauseQueue = state.pauseQueueWhileActiveCall && hasActive;
