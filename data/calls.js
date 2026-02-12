@@ -3,7 +3,7 @@ window.CALLS = [
   {
     "id": "pol_som_alto_01",
     "agency": "police",
-    "region": "BR/US",
+    "region": "BR",
     "title": "Perturbação do sossego (som alto)",
     "baseSeverity": "leve",
     "timers": {
@@ -1990,5 +1990,187 @@ window.CALLS = [
       ]
     },
     "hint": "Priorize proteção. Pergunte feridos e presença de armas. Despache patrulha imediatamente."
+  },
+
+  {
+    "id": "pol_roubo_armado_01",
+    "agency": "police",
+    "region": "BR",
+    "title": "Roubo armado em comércio",
+    "opening": "Tá acontecendo um roubo aqui na padaria… o cara tá armado e mandando todo mundo deitar!",
+    "baseSeverity": "grave",
+    "timers": { "worsen": 35, "fail": 90 },
+    "outcomes": {
+      "success": "Suspeito contido. Vítimas preservadas.",
+      "worsen": "O suspeito fica mais agressivo e ameaça disparar.",
+      "fail": "Feridos no local. Suspeito foge."
+    },
+    "protocol": {
+      "required": ["location", "weapon"],
+      "questions": [
+        {"id":"location","label":"Endereço","prompt":"Qual o endereço completo e referência?","answer":"Av. Principal, 1200, Padaria Bom Pão","effect":{"severity":"grave"}},
+        {"id":"weapon","label":"Arma","prompt":"Ele está com arma de fogo, faca ou outro objeto?","answer":"Arma de fogo, tipo revólver","effect":{"severity":"grave"}},
+        {"id":"hostages","label":"Reféns","prompt":"Tem alguém sendo mantido como refém?","answer":"Tem clientes no chão, ele tá segurando uma moça perto do caixa","effect":{"severity":"critico"}},
+        {"id":"caller_name","label":"Nome","prompt":"Qual seu nome completo?","answer":"Não posso… ele vai ouvir!","effect":{"timePenaltySec":10,"forceWorsen":true}}
+      ]
+    },
+    "dispatch": { "correctRoles": ["area_patrol", "tactical_rota"] },
+    "hint": "Em roubo armado, endereço + arma primeiro. Se houver refém, priorize unidade tática."
+  },
+
+  {
+    "id": "pol_violencia_domestica_01",
+    "agency": "police",
+    "region": "BR",
+    "title": "Violência doméstica (possível agressão)",
+    "opening": "Meu marido tá me ameaçando… ele quebrou a porta e tá gritando!",
+    "baseSeverity": "medio",
+    "timers": { "worsen": 45, "fail": 120 },
+    "outcomes": {
+      "success": "A vítima foi protegida e o agressor contido.",
+      "worsen": "A agressão aumenta. Objetos arremessados.",
+      "fail": "Vítima ferida gravemente."
+    },
+    "protocol": {
+      "required": ["location"],
+      "questions": [
+        {"id":"location","label":"Endereço","prompt":"Qual o endereço completo?","answer":"Rua das Flores, 88, casa 2","effect":{"severity":"medio"}},
+        {"id":"weapons","label":"Armas","prompt":"Há armas na casa (faca/arma de fogo)?","answer":"Tem faca na cozinha…","effect":{"severity":"grave"}},
+        {"id":"children","label":"Crianças","prompt":"Há crianças ou idosos no local?","answer":"Duas crianças no quarto","effect":{"severity":"grave"}},
+        {"id":"caller_name","label":"Nome","prompt":"Qual seu nome completo?","answer":"Agora não… ele vai ouvir!","effect":{"timePenaltySec":8}}
+      ]
+    },
+    "dispatch": { "correctRoles": ["area_patrol"] },
+    "hint": "Se houver armas/crianças, trate como risco elevado. Despache patrulha com prioridade."
+  },
+
+  {
+    "id": "pol_perseguicao_01",
+    "agency": "police",
+    "region": "US",
+    "title": "Pursuit in progress (vehicle chase)",
+    "opening": "There's a car speeding and swerving through traffic! I think they're fleeing the police!",
+    "baseSeverity": "grave",
+    "timers": { "worsen": 30, "fail": 85 },
+    "outcomes": {
+      "success": "Suspect vehicle stopped safely.",
+      "worsen": "The driver runs red lights and endangers pedestrians.",
+      "fail": "Crash with injuries; suspect escapes."
+    },
+    "protocol": {
+      "required": ["location", "vehicle"],
+      "questions": [
+        {"id":"location","label":"Location","prompt":"What's the current location and direction?","answer":"Eastbound on 5th Ave near 41st","effect":{"severity":"grave"}},
+        {"id":"vehicle","label":"Vehicle","prompt":"Describe the vehicle (color/make/plate if possible).","answer":"Black sedan, partial plate 7K…","effect":{"severity":"grave"}},
+        {"id":"weapons","label":"Weapons","prompt":"Any weapons seen?","answer":"Not sure—windows are tinted","effect":{"severity":"grave"}},
+        {"id":"caller_name","label":"Name","prompt":"What's your name?","answer":"Can't talk—I'm driving!","effect":{"timePenaltySec":10}}
+      ]
+    },
+    "dispatch": { "correctRoles": ["air_eagle", "area_patrol"] },
+    "hint": "Chases benefit from air support when available; otherwise patrol coordination."
+  },
+
+  {
+    "id": "pol_bomba_suspeita_01",
+    "agency": "police",
+    "region": "BR",
+    "title": "Objeto suspeito (ameaça de bomba)",
+    "opening": "Tem uma mochila abandonada e alguém deixou um bilhete falando de bomba…",
+    "baseSeverity": "grave",
+    "timers": { "worsen": 25, "fail": 70 },
+    "outcomes": {
+      "success": "Área isolada e artefato neutralizado.",
+      "worsen": "Pânico e aglomeração dificultam o isolamento.",
+      "fail": "Explosão / feridos; isolamento falhou."
+    },
+    "protocol": {
+      "required": ["location", "crowd"],
+      "questions": [
+        {"id":"location","label":"Local","prompt":"Onde está o objeto suspeito?","answer":"Terminal de ônibus, plataforma 3","effect":{"severity":"grave"}},
+        {"id":"crowd","label":"Pessoas","prompt":"Tem muitas pessoas próximas?","answer":"Sim, está cheio","effect":{"severity":"critico"}},
+        {"id":"smoke","label":"Sinais","prompt":"Há fios, fumaça, barulho ou cheiro estranho?","answer":"Não vi, só a mochila e o bilhete","effect":{"severity":"grave"}},
+        {"id":"caller_name","label":"Nome","prompt":"Qual seu nome?","answer":"Não importa, só manda alguém!","effect":{"timePenaltySec":8,"forceWorsen":true}}
+      ]
+    },
+    "dispatch": { "correctRoles": ["bomb_gate", "shock_riot"] },
+    "hint": "Isolamento é prioridade. Em ameaça de bomba, GATE/Esquadrão antibomba."
+  },
+
+  {
+    "id": "pol_terror_attack_rare_01",
+    "agency": "police",
+    "region": "EU",
+    "title": "Caso raro: Ataque coordenado (suspeita de terrorismo)",
+    "opening": "We heard bangs and people are running—someone left a package and there's shouting about an attack!",
+    "baseSeverity": "critico",
+    "timers": { "worsen": 20, "fail": 60 },
+    "outcomes": {
+      "success": "Threat contained; casualties minimized.",
+      "worsen": "Multiple hazards escalate; crowd panic spreads.",
+      "fail": "Mass casualties; scene uncontrolled."
+    },
+    "protocol": {
+      "required": ["location", "shots", "package"],
+      "questions": [
+        {"id":"location","label":"Location","prompt":"Exact location and nearest landmark?","answer":"Central Station main hall","effect":{"severity":"critico"}},
+        {"id":"shots","label":"Shots","prompt":"Did you hear shots or see a weapon?","answer":"Yes—two loud bangs, not sure if gunshots","effect":{"severity":"critico"}},
+        {"id":"package","label":"Package","prompt":"Is there a suspicious package/device visible?","answer":"A backpack near the entrance","effect":{"severity":"critico"}},
+        {"id":"caller_name","label":"Name","prompt":"What's your name?","answer":"Please just hurry!","effect":{"timePenaltySec":12,"forceWorsen":true}}
+      ]
+    },
+    "dispatch": { "correctRoles": ["tactical_rota", "bomb_gate", "air_eagle"] },
+    "hint": "Cenários raros exigem coordenação: tática + antibomba; priorize evacuação e isolamento."
+  },
+
+  {
+    "id": "fire_gas_leak_01",
+    "agency": "fire",
+    "region": "BR",
+    "title": "Vazamento de gás em condomínio",
+    "opening": "Tá com cheiro fortíssimo de gás no corredor e alguém tá passando mal!",
+    "baseSeverity": "grave",
+    "timers": { "worsen": 30, "fail": 80 },
+    "outcomes": {
+      "success": "Área ventilada e vazamento controlado.",
+      "worsen": "Risco de explosão aumenta; moradores em pânico.",
+      "fail": "Explosão e múltiplas vítimas."
+    },
+    "protocol": {
+      "required": ["location", "source"],
+      "questions": [
+        {"id":"location","label":"Endereço","prompt":"Qual o endereço e bloco/apto?","answer":"Condomínio Aurora, Bloco C, 3º andar","effect":{"severity":"grave"}},
+        {"id":"source","label":"Origem","prompt":"O cheiro vem de botijão, tubulação ou não sabe?","answer":"Parece tubulação no corredor","effect":{"severity":"grave"}},
+        {"id":"victims","label":"Feridos","prompt":"Há alguém desmaiado ou com falta de ar?","answer":"Uma pessoa tonta e tossindo","effect":{"severity":"grave"}},
+        {"id":"caller_name","label":"Nome","prompt":"Qual seu nome completo?","answer":"Depois… tá muito forte aqui!","effect":{"timePenaltySec":10}}
+      ]
+    },
+    "dispatch": { "correctRoles": ["hazmat", "fire_engine", "medic_ambulance"] },
+    "hint": "Vazamento de gás: evacuar, não acionar chamas, HazMat se disponível."
+  },
+
+  {
+    "id": "fire_car_crash_rescue_01",
+    "agency": "fire",
+    "region": "US",
+    "title": "Multi-vehicle crash (entrapment)",
+    "opening": "There's a bad crash—someone is trapped in the car and smoke is coming out!",
+    "baseSeverity": "grave",
+    "timers": { "worsen": 28, "fail": 75 },
+    "outcomes": {
+      "success": "Victim extricated and stabilized.",
+      "worsen": "Fire risk increases; injuries worsen.",
+      "fail": "Fire spreads; victim not rescued in time."
+    },
+    "protocol": {
+      "required": ["location", "trapped"],
+      "questions": [
+        {"id":"location","label":"Location","prompt":"Where exactly is the crash?","answer":"I-95 exit 14 northbound","effect":{"severity":"grave"}},
+        {"id":"trapped","label":"Entrapment","prompt":"Is anyone trapped or unconscious?","answer":"One person trapped, not moving much","effect":{"severity":"critico"}},
+        {"id":"smoke","label":"Smoke","prompt":"Do you see smoke or fire?","answer":"Smoke from the hood, no flames yet","effect":{"severity":"grave"}},
+        {"id":"caller_name","label":"Name","prompt":"Your name?","answer":"I'm trying to help them!","effect":{"timePenaltySec":8}}
+      ]
+    },
+    "dispatch": { "correctRoles": ["fire_rescue", "medic_ambulance", "fire_engine"] },
+    "hint": "Acidente com vítima presa: resgate + ambulância; engine se houver risco de fogo."
   }
 ];

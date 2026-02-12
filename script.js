@@ -1798,7 +1798,27 @@
     const opener = defaultOpener(def.region, state.agency);
     const protocol = getProtocolDef(def);
 
-    let convo = `${opener}\n\nChamador: ${def.title}\n\n`;
+    // AAA conversation formatting:
+    // - The operator greeting ("190/193/911...") must appear ONLY ONCE.
+    // - The caller must speak with a coherent opening line (not just the case title).
+    // - Subsequent operator prompts must NOT repeat the greeting.
+    let callerOpening = (def && (def.opening || def.callerOpening || def.callerText))
+      ? String(def.opening || def.callerOpening || def.callerText)
+      : String(def.title || "");
+
+    // If older content mistakenly embeds the greeting into the caller opening,
+    // strip the greeting part to avoid repetition.
+    if (callerOpening && callerOpening.startsWith(opener)) {
+      callerOpening = callerOpening.slice(opener.length).trim();
+    }
+    // Common greeting pattern: remove everything up to the first '?' if present.
+    const qidx = callerOpening.indexOf("?");
+    if (qidx >= 0 && qidx < 80) {
+      const tail = callerOpening.slice(qidx + 1).trim();
+      if (tail) callerOpening = tail;
+    }
+
+    let convo = `Operador: ${opener}\n\nChamador: ${callerOpening || def.title}\n\n`;
 
     const askedIds = Object.keys(c.asked).filter((k) => c.asked[k]);
     if (askedIds.length) {
