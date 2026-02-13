@@ -14,8 +14,8 @@
   const BUILD = {
     version: "1.0",
     stage: "7B",
-    builtAt: "2026-02-13 14:05:00",
-    tag: "7Bfix2-map",
+    builtAt: "2026-02-13 17:29:43",
+    tag: "7Bfix4-map-screens-fallback",
   };
   const BUILD_TEXT = `Last Call Dispatch Operator ${BUILD.version} • Stage ${BUILD.stage} • Build ${BUILD.builtAt} (${BUILD.tag})`;
 
@@ -118,7 +118,26 @@
   function ensureMap() {
     const mapEl = document.getElementById("map");
     if (!mapEl) return;
-    if (!window.L) return;
+    // If Leaflet isn't available (CDN blocked/offline), show a clear fallback
+    // message instead of a blank card.
+    if (!window.L) {
+      if (!mapEl.dataset.fallbackShown) {
+        mapEl.dataset.fallbackShown = "1";
+        mapEl.innerHTML = `
+          <div class="mapFallback">
+            <div class="mfTitle">Mapa indisponível</div>
+            <div class="mfText">O mapa usa um componente online (Leaflet/OpenStreetMap). Se a rede/CDN estiver bloqueada, o jogo continua funcionando normalmente.</div>
+          </div>
+        `;
+      }
+      return;
+    }
+
+    // If Leaflet is available after a fallback, clear the placeholder.
+    if (mapEl.dataset.fallbackShown) {
+      delete mapEl.dataset.fallbackShown;
+      mapEl.innerHTML = "";
+    }
 
     const center = getCityCenter(state.cityId);
 

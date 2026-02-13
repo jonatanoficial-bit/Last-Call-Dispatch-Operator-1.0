@@ -10,7 +10,22 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
 
-  <link rel="stylesheet" href="./styles.css?v=2026-02-13-Stage7Bfix2" />
+  <!--
+    Critical layout fallback:
+    Garante o fluxo de telas (Setup → Lobby → Plantão) sem scroll do documento,
+    mesmo se o CSS externo estiver em cache ou carregar com atraso.
+  -->
+  <style>
+    html, body { height: 100%; margin: 0; overflow: hidden !important; }
+    .app { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    main { position: relative; flex: 1; overflow: hidden; }
+    .screen { position: absolute; inset: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; opacity: 0; pointer-events: none; }
+    .screen.active { opacity: 1; pointer-events: auto; }
+    /* Mapa precisa de altura para não "sumir" */
+    .map { height: 320px; min-height: 320px; }
+  </style>
+
+  <link rel="stylesheet" href="./styles.css?v=2026-02-13-Stage7Bfix4" />
 
   <!-- Leaflet (mapa) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -218,8 +233,8 @@
 
   <!-- MUITO IMPORTANTE: ordem e cache-busting -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="./data/cities.js?v=2026-02-13-Stage7Bfix2"></script>
-  <script src="./data/calls.js?v=2026-02-13-Stage7Bfix2"></script>
-  <script src="./script.js?v=2026-02-13-Stage7Bfix2"></script>
+  <script src="./data/cities.js?v=2026-02-13-Stage7Bfix4"></script>
+  <script src="./data/calls.js?v=2026-02-13-Stage7Bfix4"></script>
+  <script src="./script.js?v=2026-02-13-Stage7Bfix4"></script>
 </body>
 </html>
