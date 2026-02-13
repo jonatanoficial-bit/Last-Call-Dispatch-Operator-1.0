@@ -10,7 +10,10 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
 
-  <link rel="stylesheet" href="./styles.css?v=2026-02-13-7Bfix1" />
+  <link rel="stylesheet" href="./styles.css?v=2026-02-13-Stage7Bfix2" />
+
+  <!-- Leaflet (mapa) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
 
 <body>
@@ -190,6 +193,12 @@
         </section>
 
         <section class="card">
+          <div class="cardTitle">Mapa Operacional</div>
+          <div class="hint">Ocorrências e unidades no mapa (OpenStreetMap).</div>
+          <div id="map" class="map"></div>
+        </section>
+
+        <section class="card">
           <div class="cardTitle">Fila de Chamadas</div>
           <div id="queueList" class="queue">—</div>
         </section>
@@ -208,8 +217,9 @@
   </div>
 
   <!-- MUITO IMPORTANTE: ordem e cache-busting -->
-  <script src="./data/cities.js?v=2026-02-13-7Bfix1"></script>
-  <script src="./data/calls.js?v=2026-02-13-7Bfix1"></script>
-  <script src="./script.js?v=2026-02-13-7Bfix1"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="./data/cities.js?v=2026-02-13-Stage7Bfix2"></script>
+  <script src="./data/calls.js?v=2026-02-13-Stage7Bfix2"></script>
+  <script src="./script.js?v=2026-02-13-Stage7Bfix2"></script>
 </body>
 </html>

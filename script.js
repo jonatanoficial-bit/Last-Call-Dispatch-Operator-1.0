@@ -14,8 +14,8 @@
   const BUILD = {
     version: "1.0",
     stage: "7B",
-    builtAt: "2026-02-13 12:24:41",
-    tag: "7Bfix1",
+    builtAt: "2026-02-13 14:05:00",
+    tag: "7Bfix2-map",
   };
   const BUILD_TEXT = `Last Call Dispatch Operator ${BUILD.version} • Stage ${BUILD.stage} • Build ${BUILD.builtAt} (${BUILD.tag})`;
 
@@ -42,6 +42,144 @@
   function safeRandom(arr) {
     if (!arr || !arr.length) return null;
     return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  // ----------------------------
+  // Stage 7B: Map + unit movement (Leaflet)
+  // ----------------------------
+  const CITY_CENTERS = {
+    br_sp: { lat: -23.5505, lng: -46.6333 },
+    br_df: { lat: -15.7939, lng: -47.8828 },
+    us_nyc: { lat: 40.7128, lng: -74.0060 },
+    us_la: { lat: 34.0522, lng: -118.2437 },
+    eu_ldn: { lat: 51.5074, lng: -0.1278 },
+    fr_par: { lat: 48.8566, lng: 2.3522 },
+    de_ber: { lat: 52.5200, lng: 13.4050 },
+    it_rom: { lat: 41.9028, lng: 12.4964 },
+    jp_tokyo: { lat: 35.6895, lng: 139.6917 },
+    ca_tor: { lat: 43.6532, lng: -79.3832 },
+    au_syd: { lat: -33.8688, lng: 151.2093 },
+  };
+
+  function getCityCenter(cityId) {
+    const c = CITY_CENTERS[cityId] || CITY_CENTERS.br_sp;
+    return { lat: c.lat, lng: c.lng };
+  }
+
+  function jitterPoint(center, radiusKm = 3.5) {
+    // Rough conversion: 1 deg lat ~111km, 1 deg lng ~111km * cos(lat)
+    const r = Math.random() * radiusKm;
+    const ang = Math.random() * Math.PI * 2;
+    const dLat = (r * Math.cos(ang)) / 111;
+    const dLng = (r * Math.sin(ang)) / (111 * Math.cos((center.lat * Math.PI) / 180));
+    return { lat: center.lat + dLat, lng: center.lng + dLng };
+  }
+
+  const ADDRESS_BOOK = {
+    br_sp: {
+      districts: ["Bela Vista", "Consolação", "Moema", "Pinheiros", "Santana", "Tatuapé"],
+      streets: ["Av. Paulista", "Rua da Consolação", "Av. Rebouças", "Av. Ibirapuera", "Av. Cruzeiro do Sul"],
+      refs: ["próximo ao metrô", "perto de um posto de gasolina", "em frente a uma farmácia", "ao lado de um shopping"],
+    },
+    us_nyc: {
+      districts: ["Midtown", "Lower Manhattan", "Harlem", "Brooklyn", "Queens"],
+      streets: ["5th Avenue", "Broadway", "Madison Avenue", "Wall Street", "Lexington Avenue"],
+      refs: ["near a subway entrance", "by a convenience store", "in front of a bank", "near a park"],
+    },
+    eu_ldn: {
+      districts: ["Westminster", "Camden", "Southwark", "Hackney", "Kensington"],
+      streets: ["Oxford Street", "Regent Street", "Whitehall", "Baker Street", "The Strand"],
+      refs: ["near a bus stop", "by the underground", "outside a pub", "near a square"],
+    },
+    jp_tokyo: {
+      districts: ["Shinjuku", "Shibuya", "Chiyoda", "Minato", "Taito"],
+      streets: ["Meiji-dori", "Aoyama-dori", "Sotobori-dori", "Yasukuni-dori"],
+      refs: ["near a station", "by a convenience store", "next to a crosswalk", "near a mall"],
+    },
+  };
+
+  function genAddress(cityId) {
+    const book = ADDRESS_BOOK[cityId] || ADDRESS_BOOK.br_sp;
+    const street = safeRandom(book.streets) || "Avenida Central";
+    const num = Math.floor(10 + Math.random() * 1990);
+    const district = safeRandom(book.districts) || "Centro";
+    const ref = safeRandom(book.refs) || "próximo a um ponto de referência";
+    return { district, address: `${street}, ${num} — ${district} (${ref})` };
+  }
+
+  const MAP = {
+    map: null,
+    tiles: null,
+    incidentMarker: null,
+    unitMarkers: new Map(),
+    lastCityId: null,
+  };
+
+  function ensureMap() {
+    const mapEl = document.getElementById("map");
+    if (!mapEl) return;
+    if (!window.L) return;
+
+    const center = getCityCenter(state.cityId);
+
+    if (!MAP.map) {
+      MAP.map = L.map(mapEl, {
+        zoomControl: true,
+        attributionControl: true,
+      }).setView([center.lat, center.lng], 12);
+      MAP.tiles = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap",
+      }).addTo(MAP.map);
+    }
+
+    if (MAP.lastCityId !== state.cityId) {
+      MAP.lastCityId = state.cityId;
+      MAP.map.setView([center.lat, center.lng], 12);
+      // Clear markers when switching city
+      if (MAP.incidentMarker) {
+        MAP.map.removeLayer(MAP.incidentMarker);
+        MAP.incidentMarker = null;
+      }
+      for (const m of MAP.unitMarkers.values()) MAP.map.removeLayer(m);
+      MAP.unitMarkers.clear();
+    }
+  }
+
+  function setIncidentOnMap(call) {
+    if (!call || !call.location) return;
+    ensureMap();
+    if (!MAP.map || !window.L) return;
+    const { lat, lng } = call.location;
+    const label = call.location.address || call.def.title;
+    if (!MAP.incidentMarker) {
+      MAP.incidentMarker = L.marker([lat, lng]).addTo(MAP.map);
+    } else {
+      MAP.incidentMarker.setLatLng([lat, lng]);
+    }
+    MAP.incidentMarker.bindPopup(`<b>Ocorrência</b><br>${escapeHtml(label)}`).openPopup();
+    MAP.map.panTo([lat, lng]);
+  }
+
+  function upsertUnitMarkers() {
+    ensureMap();
+    if (!MAP.map || !window.L) return;
+    if (!Array.isArray(state.units)) return;
+
+    for (const u of state.units) {
+      if (!u.pos) continue;
+      const key = u.id;
+      let m = MAP.unitMarkers.get(key);
+      const emoji = state.agency === "fire" ? "🚒" : "🚓";
+      const label = `${emoji} ${u.name} (${u.status || "available"})`;
+      if (!m) {
+        m = L.marker([u.pos.lat, u.pos.lng]).addTo(MAP.map);
+        MAP.unitMarkers.set(key, m);
+      } else {
+        m.setLatLng([u.pos.lat, u.pos.lng]);
+      }
+      m.bindTooltip(escapeHtml(label), { direction: "top", opacity: 0.85 });
+    }
   }
 
   // ----------------------------
@@ -1047,6 +1185,13 @@
     if (view === "setup" && el.screenSetup) el.screenSetup.classList.add("active");
     if (view === "lobby" && el.screenLobby) el.screenLobby.classList.add("active");
     if (view === "shift" && el.screenShift) el.screenShift.classList.add("active");
+    if (view === "shift") {
+      // Map needs a visible container to initialize correctly
+      setTimeout(() => {
+        ensureMap();
+        upsertUnitMarkers();
+      }, 0);
+    }
     // Keep it feeling like a proper app screen
     window.scrollTo({ top: 0, behavior: "auto" });
   }
@@ -1332,7 +1477,25 @@
   }
 
   function renderUnits() {
-    state.units = getUnitsFor(state.cityId, state.agency);
+    // IMPORTANT: don't recreate units every tick, otherwise statuses/movement reset.
+    const key = `${state.cityId}__${state.agency}`;
+    if (!state.units || !Array.isArray(state.units) || state.units.length === 0 || state.unitsKey !== key) {
+      state.unitsKey = key;
+      state.units = getUnitsFor(state.cityId, state.agency);
+
+      // Attach base position + current position for map movement
+      const center = getCityCenter(state.cityId);
+      state.units = state.units.map((u, idx) => {
+        const base = jitterPoint(center, 1.2 + (idx * 0.15));
+        return {
+          ...u,
+          status: u.status || "available",
+          basePos: base,
+          pos: { ...base },
+          move: null,
+        };
+      });
+    }
 
     // Apply progression locks by role (Stage 5)
     state.units = state.units.map((u) => ({ ...u, locked: !isRoleUnlocked(u.role) }));
@@ -1369,6 +1532,44 @@
         el.dispatchUnitSelect.value = prev;
       }
     }
+
+    // Keep map markers in sync
+    upsertUnitMarkers();
+  }
+
+  function updateUnitMovementTick() {
+    if (!Array.isArray(state.units) || !state.units.length) return;
+    for (const u of state.units) {
+      if (!u.move) continue;
+      u.move.remaining = Math.max(0, (u.move.remaining || 0) - 1);
+
+      // Linear interpolation towards target
+      const rem = Math.max(1, u.move.remaining || 1);
+      const to = u.move.target;
+      if (u.pos && to) {
+        const stepLat = (to.lat - u.pos.lat) / rem;
+        const stepLng = (to.lng - u.pos.lng) / rem;
+        u.pos.lat += stepLat;
+        u.pos.lng += stepLng;
+      }
+
+      if (u.move.remaining <= 0) {
+        if (u.move.phase === "enroute") {
+          u.status = "onscene";
+          u.move = { phase: "onscene", remaining: 5, target: { ...u.pos } };
+        } else if (u.move.phase === "onscene") {
+          u.status = "returning";
+          const back = u.basePos || getCityCenter(state.cityId);
+          u.move = { phase: "returning", remaining: Math.max(8, u.move.returnEta || 16), target: { ...back } };
+        } else {
+          u.status = "available";
+          u.move = null;
+          // Snap back
+          if (u.basePos) u.pos = { ...u.basePos };
+        }
+      }
+    }
+    upsertUnitMarkers();
   }
 
   // ----------------------------
@@ -1423,11 +1624,22 @@
     const eff = state.effects || computeUpgradeEffects();
     const baseSev = (def.baseSeverity || "leve").toLowerCase();
     const worsenMult = typeof eff.worsenTimeMult === "number" ? eff.worsenTimeMult : 1.0;
+    const center = getCityCenter(state.cityId);
+    const addr = genAddress(state.cityId);
+    const loc = jitterPoint(center, 4.0);
     return {
       uid: `call_${uidCounter}_${Date.now()}`,
       def,
       severity: baseSev,
       confidenceTrote: baseSev === "trote" ? 2 : 0,
+
+      // Stage 7B: lightweight geo for the operational map
+      location: {
+        district: addr.district,
+        address: addr.address,
+        lat: loc.lat,
+        lng: loc.lng,
+      },
 
       queueTTL: queueTTLBySeverity(baseSev, state.difficulty),
       // Call TTL (time-to-fail) can be provided by the call definition (timers.fail)
@@ -1804,12 +2016,14 @@
 
     const line = lineByRegion(def.region, state.agency);
     const tp = typingProfileForCall(def, c.severity);
-    el.callMeta.textContent = `Linha: ${line} • Caso: ${def.title} • Gravidade: ${humanSeverity(c.severity)} • Estado: ${tp.callerState}`;
+    const loc = c.location ? ` • Local: ${c.location.address}` : "";
+    el.callMeta.textContent = `Linha: ${line} • Caso: ${def.title} • Gravidade: ${humanSeverity(c.severity)} • Estado: ${tp.callerState}${loc}`;
 
     const opener = defaultOpener(def.region, state.agency);
     const protocol = getProtocolDef(def);
 
-    let convo = `${opener}\n\nChamador: ${def.title}\n\n`;
+    const opening = def.opening || def.openText || def.openingText || def.callerOpening || def.title;
+    let convo = `${opener}\n\nChamador: ${opening}\n\n`;
 
     const askedIds = Object.keys(c.asked).filter((k) => c.asked[k]);
     if (askedIds.length) {
@@ -2083,6 +2297,9 @@
     updateDispatchUnlock();
     log(`📞 Atendeu: "${state.activeCall.def.title}" (${humanSeverity(state.activeCall.severity)})`);
 
+    // Center map on the incident
+    setIncidentOnMap(state.activeCall);
+
     renderUnits();
     renderDynamicQuestions();
     renderActiveCall(true);
@@ -2197,13 +2414,6 @@
     const correctRoles = (def.dispatch && Array.isArray(def.dispatch.correctRoles)) ? def.dispatch.correctRoles : ["any"];
     const isTrote = (severityNow === "trote") || (c.confidenceTrote >= 6);
 
-    unit.status = "busy";
-    setTimeout(() => {
-      unit.status = "available";
-      renderUnits();
-      renderAll();
-    }, 5000);
-
     state.stats.dispatched += 1;
 
     if (c.overdue && !c.overduePenalized) {
@@ -2235,6 +2445,22 @@
     const lateMargin = state.effects && typeof state.effects.lateMarginSec === "number" ? state.effects.lateMarginSec : 0;
     const responseLate = remaining < eta;
     const responseTooLate = remaining + lateMargin < eta;
+
+    // Stage 7B: start movement towards the incident on the map (visual + status)
+    if (c.location) {
+      unit.status = "enroute";
+      unit.move = {
+        phase: "enroute",
+        remaining: eta,
+        target: { lat: c.location.lat, lng: c.location.lng },
+        returnEta: Math.max(8, Math.round(eta * 0.75)),
+      };
+      setIncidentOnMap(c);
+      upsertUnitMarkers();
+    } else {
+      unit.status = "busy";
+      unit.move = { phase: "onscene", remaining: 5, target: unit.pos ? { ...unit.pos } : getCityCenter(state.cityId), returnEta: 12 };
+    }
 
     let outcome = computeOutcome({
       isTrote,
@@ -2333,6 +2559,9 @@
     if (!state.shiftActive) return;
 
     state.timeSec += 1;
+
+    // Stage 7B: update moving units on the map
+    updateUnitMovementTick();
 
     const hasActive = !!state.activeCall;
     const pauseQueue = state.pauseQueueWhileActiveCall && hasActive;
