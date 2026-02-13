@@ -14,8 +14,8 @@
   const BUILD = {
     version: "1.0",
     stage: "7C",
-    builtAt: "2026-02-13 19:10:37",
-    tag: "7C-manager-priority",
+    builtAt: "2026-02-13 21:55:00",
+    tag: "7C-fixDeploy",
   };
   const BUILD_TEXT = `Last Call Dispatch Operator ${BUILD.version} • Stage ${BUILD.stage} • Build ${BUILD.builtAt} (${BUILD.tag})`;
 
