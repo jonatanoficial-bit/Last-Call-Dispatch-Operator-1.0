@@ -9,6 +9,17 @@
   "use strict";
 
   // ----------------------------
+  // Build info (always visible)
+  // ----------------------------
+  const BUILD = {
+    version: "1.0",
+    stage: "7B",
+    builtAt: "2026-02-13 12:24:41",
+    tag: "7Bfix1",
+  };
+  const BUILD_TEXT = `Last Call Dispatch Operator ${BUILD.version} • Stage ${BUILD.stage} • Build ${BUILD.builtAt} (${BUILD.tag})`;
+
+  // ----------------------------
   // Helpers
   // ----------------------------
   const $ = (id) => document.getElementById(id);
@@ -31,24 +42,6 @@
   function safeRandom(arr) {
     if (!arr || !arr.length) return null;
     return arr[Math.floor(Math.random() * arr.length)];
-  }
-
-  // Weighted random helper for call pools (supports def.weight).
-  function weightedRandom(arr) {
-    if (!arr || !arr.length) return null;
-    let total = 0;
-    for (const it of arr) {
-      const w = typeof it.weight === "number" ? it.weight : 1;
-      total += Math.max(0, w);
-    }
-    if (total <= 0) return safeRandom(arr);
-    let r = Math.random() * total;
-    for (const it of arr) {
-      const w = typeof it.weight === "number" ? it.weight : 1;
-      r -= Math.max(0, w);
-      if (r <= 0) return it;
-    }
-    return arr[arr.length - 1];
   }
 
   // ----------------------------
@@ -176,7 +169,6 @@
     citySelect: $("citySelect"),
     agencySelect: $("agencySelect"),
     difficultySelect: $("difficultySelect"),
-    modeSelect: $("modeSelect"),
 
     // Screens / navigation
     screenSetup: $("screenSetup"),
@@ -200,9 +192,6 @@
 
     callMeta: $("callMeta"),
     callText: $("callText"),
-    map: $("map"),
-    mapHint: $("mapHint"),
-    buildStamp: $("buildStamp"),
 
     btnAnswer: $("btnAnswer"),
     btnHold: $("btnHold"),
@@ -215,289 +204,6 @@
     queueList: $("queueList"),
     shiftSummary: $("shiftSummary"),
   };
-
-  // ----------------------------
-  // Stage 7A: Map (Leaflet)
-  // ----------------------------
-  const mapState = {
-    map: null,
-    baseLayer: null,
-    incidentMarker: null,
-    baseMarkers: [],
-    unitMarkers: {},
-    unitLayer: null,
-    lastCityId: null,
-  };
-
-  function setBuildStamp() {
-    if (!el.buildStamp) return;
-    try {
-      const d = new Date();
-      el.buildStamp.textContent = `Build ${d.toLocaleDateString('pt-BR')} ${d.toLocaleTimeString('pt-BR')}`;
-    } catch {
-      el.buildStamp.textContent = "Build";
-    }
-  }
-
-  function getCityCenter(cityId) {
-    const geo = window.CITY_GEO && window.CITY_GEO[cityId];
-    return geo && Array.isArray(geo.center) ? geo.center : [0, 0];
-  }
-
-  function ensureMap() {
-    if (!el.map || typeof window.L === 'undefined') return;
-    if (!mapState.map) {
-      mapState.map = L.map(el.map, { zoomControl: true, preferCanvas: true });
-      mapState.baseLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; OpenStreetMap'
-      });
-      mapState.baseLayer.addTo(mapState.map);
-    }
-    if (mapState.lastCityId !== state.cityId) {
-      mapState.lastCityId = state.cityId;
-      const center = getCityCenter(state.cityId);
-      mapState.map.setView(center, 12);
-      renderBasesOnMap();
-      if (state.shiftActive) { try { initUnitSimulation(true); } catch {} }
-      if (el.mapHint) el.mapHint.textContent = `Cidade: ${getCityName(state.cityId)} • Bases e incidentes aparecerão aqui.`;
-    }
-  }
-
-  function clearBaseMarkers() {
-    mapState.baseMarkers.forEach((m) => { try { m.remove(); } catch {} });
-    mapState.baseMarkers = [];
-  }
-
-  function renderBasesOnMap() {
-    if (!mapState.map) return;
-    clearBaseMarkers();
-    const center = getCityCenter(state.cityId);
-    // Create a small cluster around the city center to represent bases.
-    const bases = [
-      { label: state.agency === 'fire' ? 'Base (Bombeiros)' : 'Base (Polícia)', dx: 0.00, dy: 0.00 },
-      { label: 'Base Secundária', dx: 0.02, dy: -0.015 },
-    ];
-    bases.forEach((b) => {
-      const lat = center[0] + b.dx;
-      const lng = center[1] + b.dy;
-      const m = L.circleMarker([lat, lng], {
-        radius: 7,
-        weight: 2,
-        color: 'rgba(233,240,255,0.85)',
-        fillColor: 'rgba(12,16,28,0.9)',
-        fillOpacity: 1,
-      }).addTo(mapState.map);
-      m.bindTooltip(b.label, { direction: 'top' });
-      mapState.baseMarkers.push(m);
-    });
-  }
-
-  
-// ----------------------------
-// Stage 7B: Unit simulation (movement + availability) on the map
-// ----------------------------
-function haversineMeters(a, b) {
-  if (!a || !b) return 0;
-  const toRad = (d) => (d * Math.PI) / 180;
-  const R = 6371000;
-  const lat1 = toRad(a[0]), lat2 = toRad(b[0]);
-  const dLat = toRad(b[0] - a[0]);
-  const dLng = toRad(b[1] - a[1]);
-  const s1 = Math.sin(dLat / 2);
-  const s2 = Math.sin(dLng / 2);
-  const h = s1 * s1 + Math.cos(lat1) * Math.cos(lat2) * s2 * s2;
-  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
-}
-
-function moveTowards(a, b, metersStep) {
-  if (!a || !b) return a;
-  const dist = haversineMeters(a, b);
-  if (dist <= metersStep || dist <= 2) return [b[0], b[1]];
-  const t = metersStep / dist;
-  // Linear interpolation is good enough for city-scale movement
-  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
-}
-
-function unitSpeedMps(unitRole) {
-  // Simple speed classes (no routing): tuned for feel, not realism.
-  const role = String(unitRole || "");
-  if (role === "air_eagle") return 45;        // helicopter/air
-  if (role === "medic_ambulance") return 18;  // ambulance
-  if (role === "fire_rescue") return 16;      // rescue
-  if (role === "fire_engine") return 15;      // engine
-  if (role === "ladder_truck") return 13;     // ladder
-  if (role === "tactical_rota") return 14;    // tactical
-  if (role === "shock_riot") return 12;       // riot
-  if (role === "bomb_gate") return 11;        // bomb disposal
-  return 14; // patrol/default
-}
-
-function ensureUnitLayer() {
-  if (!mapState.map) return;
-  if (!mapState.unitLayer) {
-    mapState.unitLayer = L.layerGroup().addTo(mapState.map);
-  }
-}
-
-function clearUnitMarkers() {
-  if (mapState.unitLayer) {
-    try { mapState.unitLayer.clearLayers(); } catch {}
-  }
-  mapState.unitMarkers = {};
-}
-
-function computeBaseLatLngs() {
-  const center = getCityCenter(state.cityId);
-  return [
-    { id: "base_main", label: state.agency === "fire" ? "Base (Bombeiros)" : "Base (Polícia)", latlng: [center[0] + 0.00, center[1] + 0.00] },
-    { id: "base_2", label: "Base Secundária", latlng: [center[0] + 0.02, center[1] - 0.015] },
-  ];
-}
-
-function initUnitSimulation(force = false) {
-  // Keeps unit state stable across UI re-renders (renderUnits runs every second).
-  if (!state.shiftActive) return;
-  if (state.unitSim && !force && state.unitSim.cityId === state.cityId && state.unitSim.agency === state.agency) return;
-
-  const bases = computeBaseLatLngs();
-  state.unitSim = { cityId: state.cityId, agency: state.agency, bases, units: {} };
-
-  // Create stable unit objects keyed by id
-  (state.units || []).forEach((u, idx) => {
-    const base = bases[idx % bases.length];
-    state.unitSim.units[u.id] = {
-      id: u.id,
-      name: u.name,
-      role: u.role,
-      roleTag: u.roleTag,
-      locked: !!u.locked,
-      status: "available",
-      baseId: base.id,
-      baseLatlng: base.latlng,
-      latlng: base.latlng.slice(),
-      targetLatlng: null,
-      assignedCallUid: null,
-      etaTotal: null,
-      etaRemaining: null,
-      onSceneRemaining: 0,
-    };
-  });
-
-  // Reflect on base markers too
-  try { renderBasesOnMap(); } catch {}
-  try { renderUnitsOnMap(); } catch {}
-}
-
-function unitMarkerStyle(u) {
-  const isFire = state.agency === "fire";
-  // Use agency color as border; status changes fill intensity.
-  const stroke = isFire ? "rgba(255,90,90,0.95)" : "rgba(90,160,255,0.95)";
-  const fill =
-    u.status === "available" ? "rgba(12,16,28,0.95)" :
-    u.status === "enroute" ? "rgba(255,210,90,0.95)" :
-    u.status === "onscene" ? "rgba(120,255,170,0.95)" :
-    u.status === "returning" ? "rgba(233,240,255,0.90)" :
-    "rgba(160,160,160,0.9)";
-  return { stroke, fill };
-}
-
-function renderUnitsOnMap() {
-  if (!mapState.map) return;
-  ensureUnitLayer();
-  clearUnitMarkers();
-
-  const sim = state.unitSim;
-  if (!sim) return;
-
-  Object.values(sim.units).forEach((u) => {
-    const st = unitMarkerStyle(u);
-    const marker = L.circleMarker(u.latlng, {
-      radius: 6,
-      weight: 2,
-      color: st.stroke,
-      fillColor: st.fill,
-      fillOpacity: 1,
-    });
-    marker.addTo(mapState.unitLayer);
-    marker.bindTooltip(`${u.name}`, { direction: "top" });
-    mapState.unitMarkers[u.id] = marker;
-  });
-}
-
-function updateUnitMarkers() {
-  if (!mapState.map || !state.unitSim) return;
-  Object.values(state.unitSim.units).forEach((u) => {
-    const m = mapState.unitMarkers[u.id];
-    if (!m) return;
-    try {
-      m.setLatLng(u.latlng);
-      const st = unitMarkerStyle(u);
-      m.setStyle({ color: st.stroke, fillColor: st.fill });
-    } catch {}
-  });
-}
-
-function updateUnitSimulationTick() {
-  if (!state.shiftActive || !state.unitSim) return;
-
-  const sim = state.unitSim;
-  const etaMult = state.effects && typeof state.effects.etaMult === "number" ? state.effects.etaMult : 1.0;
-  const lateMargin = state.effects && typeof state.effects.lateMarginSec === "number" ? state.effects.lateMarginSec : 0;
-
-  Object.values(sim.units).forEach((u) => {
-    if (u.locked) return;
-
-    if (u.status === "enroute" && u.targetLatlng) {
-      const speed = unitSpeedMps(u.role) / Math.max(0.75, etaMult);
-      u.latlng = moveTowards(u.latlng, u.targetLatlng, speed);
-      if (typeof u.etaRemaining === "number") u.etaRemaining = Math.max(0, u.etaRemaining - 1);
-
-      const arrived = haversineMeters(u.latlng, u.targetLatlng) <= 8 || u.etaRemaining == 0;
-      if (arrived) {
-        u.latlng = [u.targetLatlng[0], u.targetLatlng[1]];
-        u.status = "onscene";
-        u.onSceneRemaining = 6 + Math.floor(Math.random() * 6);
-        if (state.activeCall && state.activeCall.uid === u.assignedCallUid && state.activeCall.dispatchInfo) {
-          finalizeDispatchOnArrival(state.activeCall, u, lateMargin);
-        }
-      }
-    } else if (u.status === "onscene") {
-      u.onSceneRemaining = Math.max(0, (u.onSceneRemaining || 0) - 1);
-      if (u.onSceneRemaining <= 0) {
-        u.status = "returning";
-        u.targetLatlng = u.baseLatlng;
-      }
-    } else if (u.status === "returning" && u.targetLatlng) {
-      const speed = unitSpeedMps(u.role) / Math.max(0.75, etaMult);
-      u.latlng = moveTowards(u.latlng, u.targetLatlng, speed);
-      const arrived = haversineMeters(u.latlng, u.targetLatlng) <= 8;
-      if (arrived) {
-        u.latlng = [u.baseLatlng[0], u.baseLatlng[1]];
-        u.status = "available";
-        u.targetLatlng = null;
-        u.assignedCallUid = null;
-        u.etaTotal = null;
-        u.etaRemaining = null;
-      }
-    }
-  });
-
-  updateUnitMarkers();
-}
-
-function setIncidentMarker(latlng, label) {
-    if (!mapState.map || !latlng) return;
-    try {
-      if (!mapState.incidentMarker) {
-        mapState.incidentMarker = L.marker(latlng).addTo(mapState.map);
-      } else {
-        mapState.incidentMarker.setLatLng(latlng);
-      }
-      if (label) mapState.incidentMarker.bindTooltip(label, { direction: 'top' });
-      mapState.map.panTo(latlng, { animate: true, duration: 0.6 });
-    } catch {}
-  }
 
   // ----------------------------
   // UI Dinâmico
@@ -617,19 +323,15 @@ function setIncidentMarker(latlng, label) {
 
   const UNLOCKS_BY_RANK = {
     // These IDs must match data/cities.js
-    // Start with a small but international selection so the game does not
-    // feel like it's only São Paulo.
-    Recruta: ["br_sp", "br_rio", "us_nyc", "eu_ldn"],
-    Operador: ["br_df", "us_lax", "jp_tokyo"],
-    "Sênior": ["fr_paris", "de_berlin"],
-    Supervisor: ["it_rome", "ca_toronto"],
+    Recruta: ["br_sp"],
+    Operador: ["br_df"],
+    "Sênior": ["eu_ldn"],
+    Supervisor: ["us_nyc"],
   };
 
   // Stage 5: unit roles unlocked by progression. These roles must match the
   // roles used by getUnitsFor(...)
   const UNIT_ROLE_UNLOCKS_BY_RANK = {
-    // Engine roles (internal). Content roles (patrol/tactical/...) are mapped
-    // to these via ROLE_MAP_CONTENT_TO_ENGINE.
     Recruta: ["area_patrol", "fire_engine", "fire_rescue", "medic_ambulance"],
     Operador: ["civil_investigation", "ladder_truck"],
     "Sênior": ["tactical_rota", "shock_riot"],
@@ -795,7 +497,6 @@ function setIncidentMarker(latlng, label) {
         agency: "police",
         difficulty: "normal",
         cityId: "br_sp",
-        mode: "career",
       },
     };
   }
@@ -817,15 +518,6 @@ function setIncidentMarker(latlng, label) {
       if (!Array.isArray(p.upgrades.owned)) p.upgrades.owned = [];
       if (typeof p.upgrades.spent !== "number") p.upgrades.spent = 0;
       if (!p.settings) p.settings = defaultProfile().settings;
-
-      // Migration/consistency: guarantee the player has unlocked everything up
-      // to their current rank (prevents old saves from showing only São Paulo).
-      const rank = (p.career && p.career.rank) ? p.career.rank : "Recruta";
-      const minCities = allUnlocksUpToRank(rank);
-      p.progress.unlockedCities = Array.from(new Set([...(p.progress.unlockedCities || []), ...minCities]));
-
-      const minRoles = allUnitRoleUnlocksUpToRank(rank);
-      p.progress.unlockedUnitRoles = Array.from(new Set([...(p.progress.unlockedUnitRoles || []), ...minRoles]));
       return p;
     } catch {
       return defaultProfile();
@@ -844,7 +536,6 @@ function setIncidentMarker(latlng, label) {
           agency: state.agency,
           difficulty: state.difficulty,
           cityId: state.cityId,
-          mode: state.mode,
         },
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
@@ -1243,7 +934,6 @@ function setIncidentMarker(latlng, label) {
     shiftActive: false,
     pauseQueueWhileActiveCall: true,
     difficulty: "normal",
-    mode: "career", // career | sandbox
     agency: "police",
     cityId: null,
 
@@ -1359,11 +1049,6 @@ function setIncidentMarker(latlng, label) {
     if (view === "shift" && el.screenShift) el.screenShift.classList.add("active");
     // Keep it feeling like a proper app screen
     window.scrollTo({ top: 0, behavior: "auto" });
-
-    // Stage 7A: map is only needed on the shift screen
-    if (view === "shift") {
-      try { ensureMap(); } catch {}
-    }
   }
 
   function refreshLobbySummary() {
@@ -1371,8 +1056,7 @@ function setIncidentMarker(latlng, label) {
     const city = cityNameById(state.cityId);
     const agency = state.agency === "fire" ? "Bombeiros" : "Polícia";
     const diff = state.difficulty === "easy" ? "Fácil" : state.difficulty === "hard" ? "Difícil" : "Normal";
-    const mode = state.mode === "sandbox" ? "Sandbox" : "Carreira";
-    el.lobbySummary.innerHTML = `<b>${agency}</b> • ${city} • Dificuldade: ${diff} • Modo: ${mode}`;
+    el.lobbySummary.innerHTML = `<b>${agency}</b> • ${city} • Dificuldade: ${diff}`;
     if (el.shiftSummaryTop) el.shiftSummaryTop.innerHTML = el.lobbySummary.innerHTML;
   }
 
@@ -1497,7 +1181,6 @@ function setIncidentMarker(latlng, label) {
   }
 
   function isRoleUnlocked(role) {
-    if (state.mode === "sandbox") return true;
     const unlocked = new Set(Array.isArray(state.progress?.unlockedUnitRoles) ? state.progress.unlockedUnitRoles : []);
     return unlocked.has(String(role || ""));
   }
@@ -1602,261 +1285,50 @@ function setIncidentMarker(latlng, label) {
   }
 
   // ----------------------------
-  // Conversa (transcript) — evita repetir a abertura a cada pergunta
-  // ----------------------------
-  function getCityDef(cityId) {
-    const cities = getCities();
-    return cities.find((c) => c && c.id === cityId) || null;
-  }
-
-  function getCityOpener(cityId, agency) {
-    const city = getCityDef(cityId);
-    if (city) {
-      const t = agency === "fire" ? city.greetingFire : city.greetingPolice;
-      if (t) return String(t);
-    }
-    // fallback
-    return defaultOpener("BR", agency);
-  }
-
-  function pickOpening(def) {
-    if (!def) return "";
-    // 1) Prefer explicit openings provided by content
-    const o = def.opening;
-    if (Array.isArray(o) && o.length) return String(o[Math.floor(Math.random() * o.length)]);
-    if (typeof o === "string" && o.trim()) return o.trim();
-
-    // 2) Auto-generate a more "real" caller first line.
-    // We avoid showing the call title to the player (it breaks immersion).
-    const title = String(def.title || "");
-    const t = title.toLowerCase();
-    const sev = String(def.baseSeverity || "leve").toLowerCase();
-    const agency = String(def.agency || "police").toLowerCase();
-
-    function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
-
-    // Trote / prank
-    if (sev === "trote") {
-      return pick([
-        "Ah... era só um teste.",
-        "Foi engano, não tem nada aqui.",
-        "Não aconteceu nada... só queria ver se atendia.",
-      ]);
-    }
-
-    // POLICE patterns
-    if (agency === "police") {
-      if (/(roubo|assalto)\b/.test(t)) {
-        return pick([
-          "Tá acontecendo um roubo agora!",
-          "Estão assaltando aqui, é urgente!",
-          "Fui roubado agora mesmo!",
-        ]);
-      }
-      if (/furto\b/.test(t)) {
-        return pick([
-          "Acabaram de furtar minhas coisas...",
-          "Meu carro foi furtado, por favor!",
-          "Levaram minha bolsa, eu não vi quem foi.",
-        ]);
-      }
-      if (/(tiro|disparo|tiroteio)\b/.test(t)) {
-        return pick([
-          "Eu ouvi tiros! Tem disparo agora!",
-          "Tem gente atirando aqui perto!",
-          "Tiroteio! Eu tô com medo!",
-        ]);
-      }
-      if (/viol(ê|e)ncia\s+dom(é|e)stica|agress(ã|a)o/.test(t)) {
-        return pick([
-          "Tem uma briga aqui em casa, preciso de ajuda...",
-          "Ele tá me ameaçando... por favor, vem rápido.",
-          "Estão agredindo alguém aqui!",
-        ]);
-      }
-      if (/(amea(ç|c)a|sequestro|ref(é|e)ns)/.test(t)) {
-        return pick([
-          "Tem alguém ameaçando uma pessoa aqui!",
-          "Acho que tem reféns, é muito sério!",
-          "Estão mantendo uma pessoa presa, socorro!",
-        ]);
-      }
-      if (/(bomba|pacote\s+suspeito|explos)/.test(t)) {
-        return pick([
-          "Encontraram um pacote suspeito, pode ser bomba!",
-          "Tem uma ameaça de explosivo, por favor!",
-          "Tem um objeto estranho e todo mundo tá assustado.",
-        ]);
-      }
-      if (/(terror|atentad)/.test(t)) {
-        return pick([
-          "Tem uma ameaça grave aqui, parece ataque...",
-          "Alguém falou em atentado, tô em pânico!",
-          "Situação muito séria, preciso de polícia agora!",
-        ]);
-      }
-      if (/(som\s+alto|perturba|barulho)/.test(t)) {
-        return pick([
-          "O vizinho tá com som altíssimo há horas!",
-          "Não dá pra dormir, barulho muito alto aqui.",
-          "Tem uma festa com som alto e confusão.",
-        ]);
-      }
-      // Generic police opening
-      return pick([
-        "Preciso de uma viatura aqui, é urgente.",
-        "Tem um problema aqui e eu preciso da polícia.",
-        "Eu preciso de ajuda, é uma ocorrência.",
-      ]);
-    }
-
-    // FIRE / EMS patterns
-    if (/(inc(ê|e)ndio|fogo|fuma(ç|c)a)/.test(t)) {
-      return pick([
-        "Tem fogo aqui! Muita fumaça!",
-        "Meu prédio tá pegando fogo!",
-        "Tá saindo fumaça de um apartamento!",
-      ]);
-    }
-    if (/(g(á|a)s|vazamento)/.test(t)) {
-      return pick([
-        "Tá com cheiro forte de gás, acho que tem vazamento!",
-        "Vazamento de gás! Todo mundo evacuando!",
-        "Tem um vazamento e eu tô com medo de explodir.",
-      ]);
-    }
-    if (/(acidente|colis(ã|a)o|capot|atropel)/.test(t)) {
-      return pick([
-        "Teve um acidente sério, tem gente ferida!",
-        "Colisão com vítimas, precisamos de resgate!",
-        "Atropelamento! Precisa de ambulância agora!",
-      ]);
-    }
-    if (/(desabamento|queda|estrutura)/.test(t)) {
-      return pick([
-        "Caiu uma estrutura, tem gente presa!",
-        "Desabamento! Precisamos de resgate!",
-        "Tem gente soterrada, por favor!",
-      ]);
-    }
-    if (/(qu(i|e)mico|produto\s+perigoso|hazmat)/.test(t)) {
-      return pick([
-        "Tem um produto vazando, cheiro muito forte!",
-        "Derramamento químico, risco no local!",
-        "Tem algo tóxico no ar, as pessoas passando mal.",
-      ]);
-    }
-
-    // Generic fire opening
-    return pick([
-      "Preciso dos bombeiros/ambulância agora!",
-      "É uma emergência, preciso de socorro!",
-      "Tem uma situação grave aqui, preciso de ajuda!",
-    ]);
-  }
-
-  function transcriptToText(call) {
-    const t = Array.isArray(call && call.transcript) ? call.transcript : [];
-    if (!t.length) return "";
-    return t
-      .map((m) => {
-        const who = m.speaker === "caller" ? "Chamador" : m.speaker === "system" ? "Sistema" : "Operador";
-        return `${who}: ${m.text}`;
-      })
-      .join("\n\n");
-  }
-
-  function parseLineFromOpener(opener) {
-    const m = String(opener || "").match(/^\s*([^,]+),/);
-    return m ? m[1].trim() : "—";
-  }
-
-  function stripOpenerPrefix(text, opener) {
-    const t = String(text || "").trim();
-    const o = String(opener || "").trim();
-    if (!t || !o) return t;
-    // Normalize spaces and punctuation for a forgiving match
-    const norm = (s) => s.toLowerCase().replace(/\s+/g, " ").trim();
-    if (norm(t).startsWith(norm(o))) {
-      let out = t.slice(o.length).trim();
-      out = out.replace(/^[:\-–—]+\s*/, "");
-      return out.trim();
-    }
-    return t;
-  }
-
-  function appendTranscript(call, speaker, text) {
-    if (!call) return;
-    if (!Array.isArray(call.transcript)) call.transcript = [];
-    call.transcript.push({ speaker, text: String(text || "").trim() });
-  }
-
-  // Map roles from content (calls/cities) to internal engine roles.
-  // This keeps data files human-friendly (patrol/tactical/bomb...) while
-  // the engine can still have fine-grained roles (area_patrol, bomb_gate...).
-  const ROLE_MAP_CONTENT_TO_ENGINE = {
-    police: {
-      patrol: "area_patrol",
-      tactical: "tactical_rota",
-      riot: "shock_riot",
-      bomb: "bomb_gate",
-      air: "air_eagle",
-      investigation: "civil_investigation",
-      federal: "civil_investigation",
-      k9: "area_patrol",
-    },
-    fire: {
-      fire: "fire_engine",
-      rescue: "fire_rescue",
-      special_rescue: "fire_rescue",
-      ems: "medic_ambulance",
-      hazmat: "hazmat",
-      fire_support: "ladder_truck",
-      ladder: "ladder_truck",
-    },
-  };
-
-  function normalizeRoleKey(roleKey, agency) {
-    const a = agency === "fire" ? "fire" : "police";
-    const key = String(roleKey || "").toLowerCase();
-    const m = ROLE_MAP_CONTENT_TO_ENGINE[a] || {};
-    return m[key] || key;
-  }
-
-  // ----------------------------
   // Unidades
   // ----------------------------
   function getUnitsFor(cityId, agency) {
-    // Prefer units defined in the city dataset (real names per city).
-    const city = getCityDef(cityId);
-
-    if (city && city.units && city.units[agency] && Array.isArray(city.units[agency])) {
-      return city.units[agency].map((u) => {
-        const roleTag = String(u.role || "").toLowerCase();
-        const role = normalizeRoleKey(roleTag, agency);
-        return {
-          id: u.id,
-          name: u.name,
-          role,
-          roleTag: roleTag || role,
-          status: "available",
-        };
-      });
-    }
-
-    // Fallback units if a city pack is missing
     if (agency === "police") {
+      if (String(cityId).includes("sp")) {
+        return [
+          { id: "u_area_1", name: "PM Área (VTR)", role: "area_patrol", status: "available" },
+          { id: "u_rota_1", name: "ROTA", role: "tactical_rota", status: "available" },
+          { id: "u_choque_1", name: "Choque", role: "shock_riot", status: "available" },
+          { id: "u_gate_1", name: "GATE (Antibomba)", role: "bomb_gate", status: "available" },
+          { id: "u_aaguia_1", name: "Águia (Helicóptero)", role: "air_eagle", status: "available" },
+          { id: "u_pc_1", name: "Polícia Civil (Investigação)", role: "civil_investigation", status: "available" },
+        ];
+      }
+      if (String(cityId).includes("ny")) {
+        return [
+          { id: "u_patrol_1", name: "Area Patrol", role: "area_patrol", status: "available" },
+          { id: "u_swat_1", name: "SWAT", role: "tactical_rota", status: "available" },
+          { id: "u_federal_1", name: "Federal Unit", role: "civil_investigation", status: "available" },
+          { id: "u_bomb_1", name: "Bomb Squad", role: "bomb_gate", status: "available" },
+          { id: "u_air_1", name: "Air Support", role: "air_eagle", status: "available" },
+        ];
+      }
       return [
-        { id: "u_patrol_1", name: "Patrulha", role: "area_patrol", roleTag: "patrol", status: "available" },
-        { id: "u_tac_1", name: "Unidade Tática", role: "tactical_rota", roleTag: "tactical", status: "available" },
-        { id: "u_invest_1", name: "Investigação", role: "civil_investigation", roleTag: "investigation", status: "available" },
+        { id: "u_patrol_1", name: "Polícia de Área", role: "area_patrol", status: "available" },
+        { id: "u_tac_1", name: "Unidade Tática", role: "tactical_rota", status: "available" },
+        { id: "u_invest_1", name: "Investigação", role: "civil_investigation", status: "available" },
+      ];
+    } else {
+      if (String(cityId).includes("sp")) {
+        return [
+          { id: "f_engine_1", name: "Auto Bomba (AB)", role: "fire_engine", status: "available" },
+          { id: "f_rescue_1", name: "Resgate (UR)", role: "fire_rescue", status: "available" },
+          { id: "f_medic_1", name: "Ambulância (USA)", role: "medic_ambulance", status: "available" },
+          { id: "f_haz_1", name: "HazMat", role: "hazmat", status: "available" },
+          { id: "f_ladder_1", name: "Auto Escada", role: "ladder_truck", status: "available" },
+        ];
+      }
+      return [
+        { id: "f_engine_1", name: "Fire Engine", role: "fire_engine", status: "available" },
+        { id: "f_rescue_1", name: "Rescue", role: "fire_rescue", status: "available" },
+        { id: "f_medic_1", name: "Ambulance", role: "medic_ambulance", status: "available" },
       ];
     }
-    return [
-      { id: "f_engine_1", name: "Fire Engine", role: "fire_engine", roleTag: "fire", status: "available" },
-      { id: "f_rescue_1", name: "Rescue", role: "fire_rescue", roleTag: "rescue", status: "available" },
-      { id: "f_medic_1", name: "Ambulance", role: "medic_ambulance", roleTag: "ems", status: "available" },
-    ];
   }
 
   function renderUnits() {
@@ -1864,14 +1336,6 @@ function setIncidentMarker(latlng, label) {
 
     // Apply progression locks by role (Stage 5)
     state.units = state.units.map((u) => ({ ...u, locked: !isRoleUnlocked(u.role) }));
-    // Stage 7B: if a unit simulation exists, keep its status/position stable
-    if (state.unitSim && state.unitSim.units && state.unitSim.cityId === state.cityId && state.unitSim.agency === state.agency) {
-      state.units = state.units.map((u) => {
-        const su = state.unitSim.units[u.id];
-        if (!su) return u;
-        return { ...u, status: su.status, locked: !!su.locked };
-      });
-    }
 
     if (el.unitsList) {
       el.unitsList.innerHTML = state.units
@@ -1881,7 +1345,7 @@ function setIncidentMarker(latlng, label) {
           return `
         <div class="subCard" style="padding:10px; margin-top:0;">
           <div style="font-weight:900;">${escapeHtml(u.name)}${lockTxt}</div>
-          <div style="font-size:12px; color:rgba(233,240,255,0.65)">role: ${escapeHtml(u.roleTag || u.role)} <span style="opacity:.55">(${escapeHtml(u.role)})</span></div>
+          <div style="font-size:12px; color:rgba(233,240,255,0.65)">role: ${escapeHtml(u.role)}</div>
           <div style="font-size:12px; color:rgba(233,240,255,0.65)">Status: ${statusTxt}</div>
         </div>`;
         })
@@ -1897,7 +1361,7 @@ function setIncidentMarker(latlng, label) {
         `<option value="">Selecione a unidade</option>` +
         state.units
           .filter((u) => u.status === "available" && !u.locked)
-          .map((u) => `<option value="${escapeHtml(u.id)}">${escapeHtml(u.name)} (${escapeHtml(u.roleTag || u.role)})</option>`)
+          .map((u) => `<option value="${escapeHtml(u.id)}">${escapeHtml(u.name)} (${escapeHtml(u.role)})</option>`)
           .join("");
 
       // Restore selection if still available
@@ -1923,11 +1387,6 @@ function setIncidentMarker(latlng, label) {
     const cc = (c.country || "").toUpperCase();
     if (cc === "BR") return "🇧🇷";
     if (cc === "US") return "🇺🇸";
-    if (cc === "GB" || cc === "UK") return "🇬🇧";
-    if (cc === "FR") return "🇫🇷";
-    if (cc === "DE") return "🇩🇪";
-    if (cc === "IT") return "🇮🇹";
-    if (cc === "CA") return "🇨🇦";
     if (cc === "EU") return "🇪🇺";
     if (cc === "JP") return "🇯🇵";
     if (cc === "IN") return "🇮🇳";
@@ -1941,7 +1400,7 @@ function setIncidentMarker(latlng, label) {
     const citiesAll = getCities();
     // If current selection is not unlocked (e.g., after data update), keep it available
     if (state.cityId) unlocked.add(state.cityId);
-    let cities = (state.mode === "sandbox") ? citiesAll : citiesAll.filter((c) => unlocked.has(c.id));
+    let cities = citiesAll.filter((c) => unlocked.has(c.id));
     // Safety: if unlock IDs don't match current dataset, don't soft-lock the player
     if (!cities.length) cities = citiesAll;
     if (!el.citySelect) return;
@@ -1964,15 +1423,10 @@ function setIncidentMarker(latlng, label) {
     const eff = state.effects || computeUpgradeEffects();
     const baseSev = (def.baseSeverity || "leve").toLowerCase();
     const worsenMult = typeof eff.worsenTimeMult === "number" ? eff.worsenTimeMult : 1.0;
-    const loc = (typeof window.pickIncidentLocation === 'function')
-      ? window.pickIncidentLocation(state.cityId)
-      : { address: "Localização indisponível", district: "—", latlng: null };
-
     return {
       uid: `call_${uidCounter}_${Date.now()}`,
       def,
       severity: baseSev,
-      location: loc,
       confidenceTrote: baseSev === "trote" ? 2 : 0,
 
       queueTTL: queueTTLBySeverity(baseSev, state.difficulty),
@@ -1993,9 +1447,6 @@ function setIncidentMarker(latlng, label) {
       asked: {},
       dispatchUnlocked: false,
       startedAt: state.timeSec,
-
-      // Stage 7A: geo/address
-      location: loc,
     };
   }
 
@@ -2063,8 +1514,7 @@ function setIncidentMarker(latlng, label) {
     // Increase pressure a bit more when it worsens
     c.callTTL = Math.max(0, c.callTTL - 6);
     log(`⚠️ OCORRÊNCIA AGRAVOU (${reason || "tempo"}). Gravidade agora: ${humanSeverity(c.severity)}.`);
-    // Update UI/meta without restarting the whole transcript typing.
-    renderActiveCall(false);
+    renderActiveCall(true);
   }
 
   function failActiveCall(reason) {
@@ -2125,19 +1575,11 @@ function setIncidentMarker(latlng, label) {
     state.score += 1;
     applyQuestionEffect(q.effect);
 
-    // Append-only conversation: add the operator question and the caller answer
-    // as new lines. This avoids repeating the greeting on every interaction.
-    // Some legacy prompt strings accidentally include the line greeting.
-    // Strip it so the operator doesn't repeat "190/911, ..." every turn.
-    const opener = getCityOpener(state.cityId, state.agency);
-    const cleanPrompt = stripOpenerPrefix(String(q.prompt || ""), opener);
-    appendTranscript(state.activeCall, "op", cleanPrompt || q.prompt);
-    appendTranscript(state.activeCall, "caller", q.answer || "(sem resposta)" );
-
     log(`🧾 Perguntou: ${q.label} (+1)`);
     updateDispatchUnlock();
 
-    // Unified render pass (updates questions, dispatch unlock, transcript, HUD)
+    renderDynamicQuestions();
+    renderActiveCall(true); // texto mudou -> atualiza (com typewriter humano)
     renderAll();
   }
 
@@ -2268,10 +1710,10 @@ function setIncidentMarker(latlng, label) {
     if (el.btnAnswer) el.btnAnswer.disabled = !(hasShift && !hasActive && hasQueue);
     if (el.btnHold) el.btnHold.disabled = !(hasShift && hasActive);
 
-    const canDispatch = hasShift && hasActive && state.activeCall.dispatchUnlocked && !state.activeCall.dispatched;
+    const canDispatch = hasShift && hasActive && state.activeCall.dispatchUnlocked;
     if (el.dispatchUnitSelect) el.dispatchUnitSelect.disabled = !canDispatch;
     if (el.btnDispatch) el.btnDispatch.disabled = !canDispatch;
-    if (el.btnDismiss) el.btnDismiss.disabled = !(hasShift && hasActive) || (state.activeCall && state.activeCall.dispatched);
+    if (el.btnDismiss) el.btnDismiss.disabled = !(hasShift && hasActive);
   }
 
   function renderQueue() {
@@ -2360,32 +1802,28 @@ function setIncidentMarker(latlng, label) {
     const c = state.activeCall;
     const def = c.def;
 
-    // Ensure this call has a transcript. This guarantees the opener is only
-    // added once and prevents re-rendering the whole conversation.
-    if (!Array.isArray(c.transcript) || !c.transcript.length) {
-      const opener = getCityOpener(state.cityId, state.agency);
-      appendTranscript(c, "op", opener);
-      appendTranscript(c, "caller", pickOpening(def));
+    const line = lineByRegion(def.region, state.agency);
+    const tp = typingProfileForCall(def, c.severity);
+    el.callMeta.textContent = `Linha: ${line} • Caso: ${def.title} • Gravidade: ${humanSeverity(c.severity)} • Estado: ${tp.callerState}`;
+
+    const opener = defaultOpener(def.region, state.agency);
+    const protocol = getProtocolDef(def);
+
+    let convo = `${opener}\n\nChamador: ${def.title}\n\n`;
+
+    const askedIds = Object.keys(c.asked).filter((k) => c.asked[k]);
+    if (askedIds.length) {
+      askedIds.forEach((qid) => {
+        const q = (protocol.questions || []).find((x) => x.id === qid);
+        if (!q) return;
+        convo += `Operador: ${q.prompt}\n`;
+        convo += `Chamador: ${q.answer || "(sem resposta)"}\n\n`;
+      });
+    } else {
+      convo += `*(Você ainda não fez perguntas. Use o painel de protocolo.)*\n\n`;
     }
 
-    const openerNow = getCityOpener(state.cityId, state.agency);
-    const line = parseLineFromOpener(openerNow);
-    const tp = typingProfileForCall(def, c.severity);
-    const addr = c.location && c.location.address ? c.location.address : "(endereço não informado)";
-    el.callMeta.textContent = `Linha: ${line} • Caso: ${def.title} • Gravidade: ${humanSeverity(c.severity)} • Estado: ${tp.callerState} • Local: ${addr}`;
-
-    // Stage 7A: map marker for active incident
-    try {
-      ensureMap();
-      if (c.location && c.location.latlng) {
-        setIncidentMarker(c.location.latlng, def.title);
-      }
-    } catch {}
-
-    // Build conversation strictly from the transcript (append-only).
-    // IMPORTANT: do not inject dynamic hint text here, otherwise incremental
-    // typewriter can't reliably append.
-    const convo = transcriptToText(c);
+    if (def.hint) convo += `[Dica] ${def.hint}\n`;
 
     const sameCall = state.ui.lastCallUid === c.uid;
     const sameText = state.ui.lastTranscript === convo;
@@ -2414,18 +1852,92 @@ function setIncidentMarker(latlng, label) {
       typewriter(el.callText, convo, twOpts);
     }
 
-    
-if (el.dispatchInfo) {
-  if (c.dispatchInfo && c.dispatched) {
-    const etaR = typeof c.dispatchInfo.etaRemaining === "number" ? fmtTime(c.dispatchInfo.etaRemaining) : "—";
-    const etaT = typeof c.dispatchInfo.etaTotal === "number" ? fmtTime(c.dispatchInfo.etaTotal) : "—";
-    el.dispatchInfo.textContent = `📡 Unidade a caminho: ${c.dispatchInfo.unitName} • ETA ${etaR}/${etaT}`;
-  } else {
-    el.dispatchInfo.textContent = c.dispatchUnlocked
-      ? `Despacho liberado. Selecione a unidade e despache.`
-      : `Despacho bloqueado. Faça as perguntas obrigatórias primeiro.`;
+    if (el.dispatchInfo) {
+      el.dispatchInfo.textContent = c.dispatchUnlocked
+        ? `Despacho liberado. Selecione a unidade e despache.`
+        : `Despacho bloqueado. Faça as perguntas obrigatórias primeiro.`;
+    }
   }
-}
+
+  // ----------------------------
+  // Seleção de caso
+  // ----------------------------
+  function pickCallDef() {
+    const calls = getCalls();
+    const poolByAgency = calls.filter((c) => (c.agency || "police") === state.agency);
+    const pool = poolByAgency.length ? poolByAgency : calls;
+
+    const troteChance = state.difficulty === "easy" ? 0.10 : state.difficulty === "hard" ? 0.18 : 0.15;
+    let candidates = pool;
+
+    if (Math.random() < troteChance) {
+      const trotes = pool.filter((c) => String(c.baseSeverity).toLowerCase() === "trote");
+      if (trotes.length) candidates = trotes;
+    }
+
+    return safeRandom(candidates);
+  }
+
+  function spawnCall() {
+    if (!state.shiftActive) return;
+    if (state.queue.length >= state.maxQueue) return;
+
+    const def = pickCallDef();
+    if (!def) return;
+
+    const inst = makeCallInstance(def);
+    state.queue.push(inst);
+
+    log(`🚨 Nova chamada: "${def.title}" (${humanSeverity(inst.severity)})`);
+  }
+
+  // ----------------------------
+  // Stage 5: Eventos especiais (cinematográficos)
+  // ----------------------------
+  function pickSpecialEvent() {
+    const diff = state.difficulty || "normal";
+    const weekend = (state.campaign?.day || 1) >= 6;
+    const storm = state.conditions.weather === "storm";
+
+    let chance = 0.12;
+    if (diff === "hard") chance += 0.08;
+    if (diff === "easy") chance -= 0.04;
+    if (storm) chance += 0.10;
+    if (weekend) chance += 0.06;
+    chance = clamp(chance, 0.05, 0.35);
+
+    if (Math.random() > chance) return null;
+
+    const policePool = [
+      { id: "pol_shots", name: "🚨 Tiroteio em andamento", spawnMult: 0.75, stressBoost: 0.10 },
+      { id: "pol_hostage", name: "🏦 Assalto com reféns", spawnMult: 0.80, stressBoost: 0.08 },
+      { id: "pol_riot", name: "🛡️ Distúrbio violento", spawnMult: 0.78, stressBoost: 0.09 },
+    ];
+    const firePool = [
+      { id: "fire_ind", name: "🔥 Incêndio industrial", spawnMult: 0.80, stressBoost: 0.08 },
+      { id: "fire_gas", name: "🧯 Vazamento de gás em massa", spawnMult: 0.78, stressBoost: 0.09 },
+      { id: "fire_mci", name: "🚑 Múltiplas vítimas", spawnMult: 0.75, stressBoost: 0.10 },
+    ];
+
+    const pool = state.agency === "fire" ? firePool : policePool;
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  // ----------------------------
+  // Resultado real (modelo)
+  // ----------------------------
+  function computeOutcome({ isTrote, correctRole, overdue, severity }) {
+    const s = String(severity || "leve").toLowerCase();
+
+    if (isTrote) {
+      return {
+        outcome: "trote",
+        outcomeLabel: "TROTE",
+        description: "Chamado falso/indevido. Recursos não devem ser mobilizados.",
+        livesSaved: 0,
+        penalty: true,
+      };
+    }
 
     if (!correctRole) {
       let desc = "Despacho incorreto. Resposta inadequada gerou falha operacional.";
@@ -2501,7 +2013,8 @@ if (el.dispatchInfo) {
     state.conditions.weather = wR < 0.65 ? "clear" : wR < 0.90 ? "rain" : "storm";
 
     // Stage 5: choose a cinematic special event for this shift (if any)
-    state.specialEvent = pickSpecialEvent();
+    // (Guarded to avoid hard-crash if a cached build loads without the function.)
+    state.specialEvent = (typeof pickSpecialEvent === "function") ? pickSpecialEvent() : null;
 
     // Ensure unit locks match current career/economy
     updateUnlockedUnitRoles();
@@ -2510,10 +2023,6 @@ if (el.dispatchInfo) {
     if (el.btnEndShift) el.btnEndShift.disabled = false;
 
     renderUnits();
-
-    // Stage 7B: init map + unit simulation
-    try { ensureMap(); } catch {}
-    try { initUnitSimulation(true); } catch {}
 
     log(`✅ Turno iniciado em ${flagByCityId(state.cityId)} ${cityNameById(state.cityId)} • Agência: ${state.agency} • Dificuldade: ${state.difficulty}`);
     log(`🌒 Condições: ${state.conditions.timeOfDay === "night" ? "Noite" : "Dia"} • ${state.conditions.weather === "storm" ? "Tempestade" : state.conditions.weather === "rain" ? "Chuva" : "Céu limpo"}`);
@@ -2574,9 +2083,9 @@ if (el.dispatchInfo) {
     updateDispatchUnlock();
     log(`📞 Atendeu: "${state.activeCall.def.title}" (${humanSeverity(state.activeCall.severity)})`);
 
-    // Let the unified renderer handle UI refresh. The call transcript will be
-    // initialized on first render (opener + caller opening) and will not be
-    // retyped on every interaction.
+    renderUnits();
+    renderDynamicQuestions();
+    renderActiveCall(true);
     renderAll();
   }
 
@@ -2657,103 +2166,173 @@ if (el.dispatchInfo) {
     renderAll();
   }
 
-  
-function dispatchSelectedUnit() {
-  if (!state.shiftActive || !state.activeCall) return;
+  function dispatchSelectedUnit() {
+    if (!state.shiftActive || !state.activeCall) return;
 
-  // se estiver digitando, pula
-  skipTypewriter(el.callText);
+    // se estiver digitando, pula
+    skipTypewriter(el.callText);
 
-  const c = state.activeCall;
+    const c = state.activeCall;
 
-  if (c.dispatched) {
-    log("📡 Unidade já em deslocamento para esta ocorrência.");
-    return;
+    if (!c.dispatchUnlocked) {
+      log("⛔ Despacho bloqueado: faça as perguntas obrigatórias.");
+      return;
+    }
+
+    const unitId = el.dispatchUnitSelect ? el.dispatchUnitSelect.value : "";
+    if (!unitId) {
+      log("⚠️ Selecione uma unidade primeiro.");
+      return;
+    }
+
+    const unit = state.units.find((u) => u.id === unitId);
+    if (!unit || unit.status !== "available") {
+      log("⚠️ Unidade inválida/indisponível.");
+      return;
+    }
+
+    const def = c.def;
+    const severityNow = c.severity;
+
+    const correctRoles = (def.dispatch && Array.isArray(def.dispatch.correctRoles)) ? def.dispatch.correctRoles : ["any"];
+    const isTrote = (severityNow === "trote") || (c.confidenceTrote >= 6);
+
+    unit.status = "busy";
+    setTimeout(() => {
+      unit.status = "available";
+      renderUnits();
+      renderAll();
+    }, 5000);
+
+    state.stats.dispatched += 1;
+
+    if (c.overdue && !c.overduePenalized) {
+      c.overduePenalized = true;
+      state.stats.overtime += 1;
+    }
+
+    const correctRole = !isTrote && (correctRoles.includes(unit.role) || correctRoles.includes("any"));
+
+    // Stage 6: simulate response time (ETA) without a map. Upgrades can reduce ETA.
+    const ROLE_ETA_BASE = {
+      area_patrol: 24,
+      civil_investigation: 32,
+      tactical_rota: 34,
+      shock_riot: 36,
+      air_eagle: 18,
+      bomb_gate: 40,
+      fire_engine: 28,
+      ladder_truck: 34,
+      fire_rescue: 26,
+      medic_ambulance: 22,
+      hazmat: 42,
+    };
+    const etaBase = ROLE_ETA_BASE[unit.role] || 28;
+    const etaMult = state.effects && typeof state.effects.etaMult === "number" ? state.effects.etaMult : 1.0;
+    const etaRand = Math.floor(Math.random() * 7); // 0..6
+    const eta = Math.max(8, Math.round(etaBase * etaMult) + etaRand);
+    const remaining = Math.max(0, c.callTTL || 0);
+    const lateMargin = state.effects && typeof state.effects.lateMarginSec === "number" ? state.effects.lateMarginSec : 0;
+    const responseLate = remaining < eta;
+    const responseTooLate = remaining + lateMargin < eta;
+
+    let outcome = computeOutcome({
+      isTrote,
+      correctRole,
+      overdue: c.overdue || responseLate,
+      severity: severityNow,
+    });
+
+    // If the response would arrive after the fail timer (too late), treat as fail even if role was correct.
+    if (!isTrote && correctRole && responseTooLate) {
+      outcome = {
+        outcome: "fail",
+        outcomeLabel: "CHEGOU TARDE",
+        description: "A unidade correta foi mobilizada, porém o tempo de resposta foi insuficiente. Consequências graves.",
+        livesSaved: 0,
+        penalty: true,
+      };
+    }
+
+    let scoreDelta = 0;
+    let xpDelta = 0;
+
+    if (outcome.outcome === "trote") {
+      scoreDelta = -12;
+      xpDelta = -2;
+      state.stats.wrong += 1;
+      addWarning("Despacho indevido em trote.");
+    } else if (outcome.outcome === "fail") {
+      scoreDelta = -12;
+      xpDelta = -3;
+      state.stats.wrong += 1;
+      addWarning("Despacho incorreto (falha operacional).");
+      state.career.totalFail += 1;
+    } else if (outcome.outcome === "partial") {
+      scoreDelta = Math.max(4, severityScore(severityNow) - 10);
+      scoreDelta -= 5;
+      xpDelta = 3;
+      state.stats.correct += 1;
+      state.career.totalSuccess += 1;
+    } else {
+      scoreDelta = severityScore(severityNow);
+      xpDelta = severityNow === "grave" ? 8 : 5;
+      state.stats.correct += 1;
+      state.career.totalSuccess += 1;
+    }
+
+    if (outcome.livesSaved > 0) {
+      state.career.totalLivesSaved += outcome.livesSaved;
+      state.stats.livesSaved += outcome.livesSaved;
+      scoreDelta += 6;
+      xpDelta += 4;
+    }
+
+    // Stage 6: upgrades can boost scoring on high-severity cases
+    const sevLower = String(severityNow).toLowerCase();
+    if ((sevLower === "grave" || sevLower === "critico") && (outcome.outcome === "success" || outcome.outcome === "partial")) {
+      const m = state.effects && typeof state.effects.graveScoreMult === "number" ? state.effects.graveScoreMult : 1.0;
+      scoreDelta = Math.round(scoreDelta * m);
+    }
+
+    if (!isTrote && c.overdue && String(severityNow).toLowerCase() === "grave") {
+      addWarning("Atraso crítico em ocorrência GRAVE.");
+    }
+
+    state.score += scoreDelta;
+    addXp(xpDelta);
+
+    if (outcome.outcome === "success") log(`✅ SUCESSO: despacho correto (+${scoreDelta}) XP +${xpDelta}`);
+    if (outcome.outcome === "partial") log(`⚠️ ${outcome.outcomeLabel}: (+${scoreDelta}) XP +${xpDelta}`);
+    if (outcome.outcome === "fail") log(`❌ FALHA: (${scoreDelta}) XP ${xpDelta}`);
+    if (outcome.outcome === "trote") log(`❌ TROTE: despacho indevido (${scoreDelta}) XP ${xpDelta}`);
+
+    setReport({
+      title: def.title,
+      severity: severityNow,
+      outcomeLabel: outcome.outcomeLabel,
+      description: outcome.description + ` (ETA: ${fmtTime(eta)})` + (outcome.livesSaved ? ` (Vidas salvas: ${outcome.livesSaved})` : ""),
+      unitName: unit.name,
+      unitRole: unit.role,
+      scoreDelta,
+      xpDelta,
+      handleTime: state.timeSec - c.startedAt,
+    });
+
+    state.activeCall = null;
+    state.ui.lastCallUid = null;
+    state.ui.lastTranscript = "";
+
+    renderAll();
   }
 
-  if (!c.dispatchUnlocked) {
-    log("⛔ Despacho bloqueado: faça as perguntas obrigatórias.");
-    return;
-  }
-
-  const unitId = el.dispatchUnitSelect ? el.dispatchUnitSelect.value : "";
-  if (!unitId) {
-    log("⚠️ Selecione uma unidade primeiro.");
-    return;
-  }
-
-  const sim = state.unitSim && state.unitSim.units ? state.unitSim.units[unitId] : null;
-  const unit = sim || (state.units || []).find((u) => u.id === unitId);
-
-  if (!unit || unit.status !== "available") {
-    log("⚠️ Unidade inválida/indisponível.");
-    return;
-  }
-  if (unit.locked) {
-    log("🔒 Unidade bloqueada pela carreira/operação.");
-    return;
-  }
-
-  const target = c.location && c.location.latlng ? c.location.latlng : null;
-  if (!target || !Array.isArray(target)) {
-    log("⚠️ Sem coordenadas para simular deslocamento. (Falha de geo)");
-    return;
-  }
-
-  const baseLatlng = unit.latlng || (unit.baseLatlng ? unit.baseLatlng : getCityCenter(state.cityId));
-  const dist = haversineMeters(baseLatlng, target);
-  const speed = unitSpeedMps(unit.role);
-  const etaMult = state.effects && typeof state.effects.etaMult === "number" ? state.effects.etaMult : 1.0;
-  const rand = 0.85 + Math.random() * 0.45;
-  const eta = Math.max(8, Math.round((dist / Math.max(4, speed)) * etaMult * rand));
-
-  unit.status = "enroute";
-  unit.targetLatlng = target;
-  unit.assignedCallUid = c.uid;
-  unit.etaTotal = eta;
-  unit.etaRemaining = eta;
-
-  c.dispatched = true;
-  c.dispatchInfo = {
-    unitId,
-    unitName: unit.name,
-    unitRole: unit.role,
-    etaTotal: eta,
-    etaRemaining: eta,
-    remainingAtDispatch: Math.max(0, c.callTTL || 0),
-    dispatchedAt: state.timeSec,
-  };
-
-  state.stats.dispatched += 1;
-
-  try { ensureMap(); } catch {}
-  try { setIncidentMarker(target, `${c.def.title}`); } catch {}
-  try { updateUnitMarkers(); } catch {}
-
-  log(`🚓 Despachado: ${unit.name} (${unit.roleTag || unit.role}) • ETA ~ ${fmtTime(eta)} • Endereço: ${c.location && c.location.address ? c.location.address : "—"}`);
-
-  renderUnits();
-  renderAll();
-}
-
-// ----------------------------
-// Tick
+  // ----------------------------
+  // Tick
   // ----------------------------
   function tick() {
     if (!state.shiftActive) return;
 
     state.timeSec += 1;
-
-    // Stage 7B: update unit movement (map)
-    try { updateUnitSimulationTick(); } catch {}
-
-    // Sync dispatch ETA UI while a unit is enroute
-    if (state.activeCall && state.activeCall.dispatchInfo && state.unitSim && state.unitSim.units) {
-      const u = state.unitSim.units[state.activeCall.dispatchInfo.unitId];
-      if (u && typeof u.etaRemaining === "number") {
-        state.activeCall.dispatchInfo.etaRemaining = u.etaRemaining;
-      }
-    }
 
     const hasActive = !!state.activeCall;
     const pauseQueue = state.pauseQueueWhileActiveCall && hasActive;
@@ -2992,18 +2571,6 @@ function dispatchSelectedUnit() {
       });
     }
 
-    if (el.modeSelect) {
-      el.modeSelect.addEventListener("change", () => {
-        state.mode = el.modeSelect.value || "career";
-        log(`🕹️ Modo: ${state.mode === "sandbox" ? "Sandbox" : "Carreira"}`);
-        // Refresh city list because unlock rules change
-        populateCities();
-        refreshLobbySummary();
-        renderUnits();
-        saveProfile();
-      });
-    }
-
     if (el.btnStartShift) el.btnStartShift.addEventListener("click", startShift);
     if (el.btnEndShift) el.btnEndShift.addEventListener("click", endShift);
 
@@ -3025,8 +2592,11 @@ function dispatchSelectedUnit() {
   // Init
   // ----------------------------
   function init() {
-    setBuildStamp();
     bindDynamicUI();
+
+    // Show build info in header (helps verify updates on GitHub Pages/Vercel)
+    const buildEl = document.getElementById("buildInfo");
+    if (buildEl) buildEl.textContent = BUILD_TEXT;
 
     // Stage 5: load optional DLC packs (non-blocking)
     tryLoadDlcPacks();
@@ -3043,13 +2613,11 @@ function dispatchSelectedUnit() {
     state.agency = p.settings.agency;
     state.difficulty = p.settings.difficulty;
     state.cityId = p.settings.cityId;
-    state.mode = p.settings.mode || "career";
 
     populateCities();
     if (el.agencySelect) el.agencySelect.value = state.agency || "police";
     if (el.difficultySelect) el.difficultySelect.value = state.difficulty || "normal";
     if (el.citySelect) el.citySelect.value = state.cityId;
-    if (el.modeSelect) el.modeSelect.value = state.mode || "career";
 
     if (el.btnEndShift) el.btnEndShift.disabled = true;
 
