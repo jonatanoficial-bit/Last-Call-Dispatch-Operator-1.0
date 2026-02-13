@@ -14,8 +14,8 @@
   const BUILD = {
     version: "1.0",
     stage: "7C",
-    builtAt: "2026-02-13 21:55:00",
-    tag: "7C-fixDeploy",
+    builtAt: "2026-02-13 22:20:00",
+    tag: "7C-fixDeploy2-scroll",
   };
   const BUILD_TEXT = `Last Call Dispatch Operator ${BUILD.version} • Stage ${BUILD.stage} • Build ${BUILD.builtAt} (${BUILD.tag})`;
 
@@ -1212,6 +1212,15 @@
     if (view === "setup" && el.screenSetup) el.screenSetup.classList.add("active");
     if (view === "lobby" && el.screenLobby) el.screenLobby.classList.add("active");
     if (view === "shift" && el.screenShift) el.screenShift.classList.add("active");
+
+    // Reset scroll on the active screen container (important: each screen is its own
+    // scroll container; window.scrollTo() does not affect it). This prevents the UI
+    // from "starting" in the middle of the plantão where the player thinks buttons
+    // disappeared.
+    const active =
+      view === "setup" ? el.screenSetup : view === "lobby" ? el.screenLobby : view === "shift" ? el.screenShift : null;
+    if (active) active.scrollTop = 0;
+
     if (view === "shift") {
       // Map needs a visible container to initialize correctly
       setTimeout(() => {
