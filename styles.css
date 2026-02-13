@@ -462,3 +462,7 @@ body[data-agency="fire"] {
   .grid > section:nth-child(5){ grid-column: 1; }
   .grid > section:nth-child(6){ grid-column: 2; }
 }
+
+/* Stage 7C */
+.miniList{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.miniItem{padding:8px 10px;border-radius:12px;background:rgba(8,10,18,0.45);border:1px solid rgba(255,255,255,0.10);font-size:12px;line-height:1.2}

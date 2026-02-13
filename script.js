@@ -13,9 +13,9 @@
   // ----------------------------
   const BUILD = {
     version: "1.0",
-    stage: "7B",
-    builtAt: "2026-02-13 17:29:43",
-    tag: "7Bfix4-map-screens-fallback",
+    stage: "7C",
+    builtAt: "2026-02-13 19:10:37",
+    tag: "7C-manager-priority",
   };
   const BUILD_TEXT = `Last Call Dispatch Operator ${BUILD.version} • Stage ${BUILD.stage} • Build ${BUILD.builtAt} (${BUILD.tag})`;
 
@@ -355,8 +355,13 @@
 
     dispatchInfo: $("dispatchInfo"),
     dispatchUnitSelect: $("dispatchUnitSelect"),
+    btnAddUnit: $("btnAddUnit"),
     btnDispatch: $("btnDispatch"),
     btnDismiss: $("btnDismiss"),
+
+    dispatchSelectedList: $("dispatchSelectedList"),
+
+    incidentsList: $("incidentsList"),
 
     queueList: $("queueList"),
     shiftSummary: $("shiftSummary"),
@@ -1089,7 +1094,7 @@
   // ----------------------------
   const state = {
     shiftActive: false,
-    pauseQueueWhileActiveCall: true,
+    pauseQueueWhileActiveCall: false, // Stage 7C: manager mode (fila continua mesmo com chamada ativa)
     difficulty: "normal",
     agency: "police",
     cityId: null,
@@ -1108,6 +1113,9 @@
 
     queue: [],
     activeCall: null,
+    incidents: [],
+    focusIncidentUid: null,
+    pendingDispatchUnitIds: [],
     units: [],
 
     lastReport: null,
@@ -1575,7 +1583,7 @@
       if (u.move.remaining <= 0) {
         if (u.move.phase === "enroute") {
           u.status = "onscene";
-          u.move = { phase: "onscene", remaining: 5, target: { ...u.pos } };
+          u.move = { phase: "onscene", remaining: Math.max(3, u.move.onsceneSec || 5), target: { ...u.pos }, returnEta: u.move.returnEta };
         } else if (u.move.phase === "onscene") {
           u.status = "returning";
           const back = u.basePos || getCityCenter(state.cityId);
@@ -1634,7 +1642,183 @@
   // ----------------------------
   // Protocolo / Instância de chamada
   // ----------------------------
-  function getProtocolDef(callDef) {
+  // ----------------------------
+// Stage 7C: Incidentes (manager) + Transcript append-only
+// ----------------------------
+function ensureTranscriptInitialized(call) {
+  if (!call) return;
+  if (call.transcriptInitialized) return;
+
+  const def = call.def;
+  const opener = defaultOpener(def.region, state.agency);
+  const opening = def.opening || def.openText || def.openingText || def.callerOpening || def.title;
+
+  call.transcript = [];
+  call.transcript.push(`Operador: ${opener}`);
+  call.transcript.push("");
+  call.transcript.push(`Chamador: ${opening}`);
+  call.transcript.push("");
+  call.transcriptInitialized = true;
+  call.transcriptText = call.transcript.join("\n");
+}
+
+function appendTranscript(call, lines) {
+  if (!call) return;
+  ensureTranscriptInitialized(call);
+  if (!Array.isArray(lines)) lines = [String(lines)];
+  for (const ln of lines) call.transcript.push(String(ln));
+  call.transcriptText = call.transcript.join("\n");
+}
+
+function computeOnsceneSec(severity, role) {
+  const s = String(severity || "leve").toLowerCase();
+  let base = 10;
+  if (s === "trote") base = 6;
+  if (s === "leve") base = 10;
+  if (s === "medio") base = 14;
+  if (s === "grave") base = 20;
+  if (s === "critico") base = 26;
+
+  // Some roles take longer on scene (bomb/hazmat)
+  if (role === "bomb_gate" || role === "hazmat") base += 10;
+  if (role === "tactical_rota" || role === "shock_riot") base += 4;
+
+  // Upgrades can shorten on-scene handling slightly
+  const m = state.effects && typeof state.effects.onsceneMult === "number" ? state.effects.onsceneMult : 1.0;
+  return Math.max(6, Math.round(base * m));
+}
+
+function getIncidentByUid(uid) {
+  return Array.isArray(state.incidents) ? state.incidents.find((x) => x && x.uid === uid) : null;
+}
+
+function upsertIncident(incident) {
+  if (!incident) return;
+  if (!Array.isArray(state.incidents)) state.incidents = [];
+  const i = state.incidents.findIndex((x) => x && x.uid === incident.uid);
+  if (i >= 0) state.incidents[i] = incident;
+  else state.incidents.unshift(incident);
+}
+
+function refreshIncidentStatuses() {
+  if (!Array.isArray(state.incidents)) return;
+  // Remove incidents once all assigned units are back available
+  state.incidents = state.incidents.filter((inc) => {
+    const ids = Array.isArray(inc.unitIds) ? inc.unitIds : [];
+    if (!ids.length) return false;
+    const units = ids.map((id) => state.units.find((u) => u.id === id)).filter(Boolean);
+    const anyBusy = units.some((u) => u.status !== "available");
+    return anyBusy;
+  });
+}
+
+function focusIncident(uid) {
+  const inc = getIncidentByUid(uid);
+  if (!inc) return;
+  state.focusIncidentUid = uid;
+
+  // Put the incident in the "activeCall" panel as a focus view (no timers, only reinforcement dispatch)
+  state.activeCall = inc.call;
+  state.activeCall.isIncidentFocus = true;
+  state.activeCall.dispatchUnlocked = true;
+  state.activeCall.callTTL = 9999;
+  state.activeCall.worsenTTL = null;
+
+  // show on map
+  setIncidentOnMap(state.activeCall);
+  log(`🎯 Foco no incidente: "${inc.title}" (${humanSeverity(inc.severity)})`);
+  renderAll();
+}
+
+// ----------------------------
+// Stage 7C: Incidentes (manager) + Transcript append-only
+// ----------------------------
+function ensureTranscriptInitialized(call) {
+  if (!call) return;
+  if (call.transcriptInitialized) return;
+
+  const def = call.def;
+  const opener = defaultOpener(def.region, state.agency);
+  const opening = def.opening || def.openText || def.openingText || def.callerOpening || def.title;
+
+  call.transcript = [];
+  call.transcript.push(`Operador: ${opener}`);
+  call.transcript.push("");
+  call.transcript.push(`Chamador: ${opening}`);
+  call.transcript.push("");
+  call.transcriptInitialized = true;
+  call.transcriptText = call.transcript.join("\n");
+}
+
+function appendTranscript(call, lines) {
+  if (!call) return;
+  ensureTranscriptInitialized(call);
+  if (!Array.isArray(lines)) lines = [String(lines)];
+  for (const ln of lines) call.transcript.push(String(ln));
+  call.transcriptText = call.transcript.join("\n");
+}
+
+function computeOnsceneSec(severity, role) {
+  const s = String(severity || "leve").toLowerCase();
+  let base = 10;
+  if (s === "trote") base = 6;
+  if (s === "leve") base = 10;
+  if (s === "medio") base = 14;
+  if (s === "grave") base = 20;
+  if (s === "critico") base = 26;
+
+  // Some roles take longer on scene (bomb/hazmat)
+  if (role === "bomb_gate" || role === "hazmat") base += 10;
+  if (role === "tactical_rota" || role === "shock_riot") base += 4;
+
+  // Upgrades can shorten on-scene handling slightly
+  const m = state.effects && typeof state.effects.onsceneMult === "number" ? state.effects.onsceneMult : 1.0;
+  return Math.max(6, Math.round(base * m));
+}
+
+function getIncidentByUid(uid) {
+  return Array.isArray(state.incidents) ? state.incidents.find((x) => x && x.uid === uid) : null;
+}
+
+function upsertIncident(incident) {
+  if (!incident) return;
+  if (!Array.isArray(state.incidents)) state.incidents = [];
+  const i = state.incidents.findIndex((x) => x && x.uid === incident.uid);
+  if (i >= 0) state.incidents[i] = incident;
+  else state.incidents.unshift(incident);
+}
+
+function refreshIncidentStatuses() {
+  if (!Array.isArray(state.incidents)) return;
+  // Remove incidents once all assigned units are back available
+  state.incidents = state.incidents.filter((inc) => {
+    const ids = Array.isArray(inc.unitIds) ? inc.unitIds : [];
+    if (!ids.length) return false;
+    const units = ids.map((id) => state.units.find((u) => u.id === id)).filter(Boolean);
+    const anyBusy = units.some((u) => u.status !== "available");
+    return anyBusy;
+  });
+}
+
+function focusIncident(uid) {
+  const inc = getIncidentByUid(uid);
+  if (!inc) return;
+  state.focusIncidentUid = uid;
+
+  // Put the incident in the "activeCall" panel as a focus view (no timers, only reinforcement dispatch)
+  state.activeCall = inc.call;
+  state.activeCall.isIncidentFocus = true;
+  state.activeCall.dispatchUnlocked = true;
+  state.activeCall.callTTL = 9999;
+  state.activeCall.worsenTTL = null;
+
+  // show on map
+  setIncidentOnMap(state.activeCall);
+  log(`🎯 Foco no incidente: "${inc.title}" (${humanSeverity(inc.severity)})`);
+  renderAll();
+}
+
+function getProtocolDef(callDef) {
     return callDef && callDef.protocol ? callDef.protocol : { required: [], questions: [] };
   }
 
@@ -1677,7 +1861,14 @@
 
       asked: {},
       dispatchUnlocked: false,
-      startedAt: state.timeSec,
+
+      // Stage 7C: append-only transcript (no repetir abertura)
+      transcriptInitialized: false,
+      transcript: [],
+      transcriptText: "",
+
+      startedAt: null,
+      answeredAt: null,
     };
   }
 
@@ -1744,6 +1935,7 @@
     addStress(12);
     // Increase pressure a bit more when it worsens
     c.callTTL = Math.max(0, c.callTTL - 6);
+    appendTranscript(c, [`⚠️ [Sistema] Ocorrência agravou (${reason || "tempo"}). Gravidade agora: ${humanSeverity(c.severity)}.`, ""]);
     log(`⚠️ OCORRÊNCIA AGRAVOU (${reason || "tempo"}). Gravidade agora: ${humanSeverity(c.severity)}.`);
     renderActiveCall(true);
   }
@@ -1805,6 +1997,13 @@
     state.activeCall.asked[questionId] = true;
     state.score += 1;
     applyQuestionEffect(q.effect);
+
+    // Stage 7C: append-only transcript
+    appendTranscript(state.activeCall, [
+      `Operador: ${q.prompt}`,
+      `Chamador: ${q.answer || "(sem resposta)"}`,
+      "",
+    ]);
 
     log(`🧾 Perguntou: ${q.label} (+1)`);
     updateDispatchUnlock();
@@ -1934,20 +2133,25 @@
   }
 
   function setButtons() {
-    const hasShift = state.shiftActive;
-    const hasQueue = state.queue.length > 0;
-    const hasActive = !!state.activeCall;
+  const hasShift = state.shiftActive;
+  const hasQueue = state.queue.length > 0;
+  const hasActive = !!state.activeCall;
 
-    if (el.btnAnswer) el.btnAnswer.disabled = !(hasShift && !hasActive && hasQueue);
-    if (el.btnHold) el.btnHold.disabled = !(hasShift && hasActive);
+  if (el.btnAnswer) el.btnAnswer.disabled = !(hasShift && !hasActive && hasQueue);
+  if (el.btnHold) el.btnHold.disabled = !(hasShift && hasActive && !state.activeCall.isIncidentFocus);
 
-    const canDispatch = hasShift && hasActive && state.activeCall.dispatchUnlocked;
-    if (el.dispatchUnitSelect) el.dispatchUnitSelect.disabled = !canDispatch;
-    if (el.btnDispatch) el.btnDispatch.disabled = !canDispatch;
-    if (el.btnDismiss) el.btnDismiss.disabled = !(hasShift && hasActive);
-  }
+  const canDispatch = hasShift && hasActive && (state.activeCall.dispatchUnlocked || state.activeCall.isIncidentFocus);
+  if (el.dispatchUnitSelect) el.dispatchUnitSelect.disabled = !canDispatch;
 
-  function renderQueue() {
+  const hasPending = Array.isArray(state.pendingDispatchUnitIds) && state.pendingDispatchUnitIds.length > 0;
+  const selected = el.dispatchUnitSelect ? !!el.dispatchUnitSelect.value : false;
+
+  if (el.btnAddUnit) el.btnAddUnit.disabled = !(canDispatch && selected);
+  if (el.btnDispatch) el.btnDispatch.disabled = !(canDispatch && (hasPending || selected));
+  if (el.btnDismiss) el.btnDismiss.disabled = !(hasShift && hasActive && !state.activeCall.isIncidentFocus);
+}
+
+function renderQueue() {
     if (!el.queueList) return;
     if (!state.queue.length) {
       el.queueList.innerHTML = "—";
@@ -1975,7 +2179,63 @@
       .join("");
   }
 
-  function renderSummary() {
+  function renderDispatchSelectedList() {
+  if (!el.dispatchSelectedList) return;
+  const ids = Array.isArray(state.pendingDispatchUnitIds) ? state.pendingDispatchUnitIds : [];
+  if (!state.shiftActive) { el.dispatchSelectedList.innerHTML = "—"; return; }
+  if (!ids.length) { el.dispatchSelectedList.innerHTML = "—"; return; }
+  const items = ids.map((id) => {
+    const u = state.units.find((x) => x.id === id);
+    return u ? `${escapeHtml(u.name)} <span style="opacity:.7">(${escapeHtml(u.role)})</span>` : escapeHtml(id);
+  });
+  el.dispatchSelectedList.innerHTML = items.map((t) => `<div class="miniItem">${t}</div>`).join("");
+}
+
+function renderIncidents() {
+  if (!el.incidentsList) return;
+
+  refreshIncidentStatuses();
+
+  if (!Array.isArray(state.incidents) || !state.incidents.length) {
+    el.incidentsList.innerHTML = "—";
+    return;
+  }
+
+  el.incidentsList.innerHTML = state.incidents
+    .map((inc) => {
+      const units = (inc.unitIds || []).map((id) => state.units.find((u) => u.id === id)).filter(Boolean);
+      const busy = units.filter((u) => u.status !== "available");
+      const status = busy.length ? busy[0].status : "—";
+      const focused = state.focusIncidentUid === inc.uid;
+      return `
+      <div class="subCard" data-inc="${escapeHtml(inc.uid)}" style="padding:10px; margin-top:0; cursor:pointer; border:${focused ? "1px solid rgba(90,190,255,.55)" : "1px solid rgba(255,255,255,0.12)"};">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+          <div style="min-width:0;">
+            <div style="font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+              ${escapeHtml(inc.title)}
+            </div>
+            <div style="font-size:12px; color:rgba(233,240,255,0.65)">
+              Gravidade: ${escapeHtml(humanSeverity(inc.severity))} • Unidades: ${units.length} • Status: ${escapeHtml(status)}
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            ${severityBadge(inc.severity)}
+          </div>
+        </div>
+      </div>`;
+    })
+    .join("");
+
+  const cards = el.incidentsList.querySelectorAll("[data-inc]");
+  cards.forEach((card) => {
+    card.addEventListener("click", () => {
+      const uid = card.getAttribute("data-inc");
+      focusIncident(uid);
+    });
+  });
+}
+
+function renderSummary() {
     if (!el.shiftSummary) return;
 
     if (!state.shiftActive) {
@@ -2038,25 +2298,12 @@
     const loc = c.location ? ` • Local: ${c.location.address}` : "";
     el.callMeta.textContent = `Linha: ${line} • Caso: ${def.title} • Gravidade: ${humanSeverity(c.severity)} • Estado: ${tp.callerState}${loc}`;
 
-    const opener = defaultOpener(def.region, state.agency);
-    const protocol = getProtocolDef(def);
+    
+// Stage 7C: transcript append-only (não repete a abertura em cada pergunta)
+ensureTranscriptInitialized(c);
 
-    const opening = def.opening || def.openText || def.openingText || def.callerOpening || def.title;
-    let convo = `${opener}\n\nChamador: ${opening}\n\n`;
-
-    const askedIds = Object.keys(c.asked).filter((k) => c.asked[k]);
-    if (askedIds.length) {
-      askedIds.forEach((qid) => {
-        const q = (protocol.questions || []).find((x) => x.id === qid);
-        if (!q) return;
-        convo += `Operador: ${q.prompt}\n`;
-        convo += `Chamador: ${q.answer || "(sem resposta)"}\n\n`;
-      });
-    } else {
-      convo += `*(Você ainda não fez perguntas. Use o painel de protocolo.)*\n\n`;
-    }
-
-    if (def.hint) convo += `[Dica] ${def.hint}\n`;
+let convo = c.transcriptText || "";
+if (def.hint) convo += `[Dica] ${def.hint}\n`;
 
     const sameCall = state.ui.lastCallUid === c.uid;
     const sameText = state.ui.lastTranscript === convo;
@@ -2231,6 +2478,9 @@
     state.score = 0;
     state.queue = [];
     state.activeCall = null;
+    state.incidents = [];
+    state.focusIncidentUid = null;
+    state.pendingDispatchUnitIds = [];
     state.spawnAccumulator = 0;
 
     state.ui.lastCallUid = null;
@@ -2278,6 +2528,8 @@
     if (!state.shiftActive) return;
 
     state.shiftActive = false;
+    state.focusIncidentUid = null;
+    state.pendingDispatchUnitIds = [];
 
     if (state.tickInterval) {
       clearInterval(state.tickInterval);
@@ -2308,6 +2560,18 @@
     if (!state.queue.length) return;
 
     state.activeCall = state.queue.shift();
+    state.activeCall.isIncidentFocus = false;
+    state.activeCall.startedAt = state.timeSec;
+    state.activeCall.answeredAt = state.timeSec;
+    state.focusIncidentUid = null;
+    state.pendingDispatchUnitIds = [];
+    ensureTranscriptInitialized(state.activeCall);
+    state.activeCall.isIncidentFocus = false;
+    state.activeCall.startedAt = state.timeSec;
+    state.activeCall.answeredAt = state.timeSec;
+    state.focusIncidentUid = null;
+    state.pendingDispatchUnitIds = [];
+    ensureTranscriptInitialized(state.activeCall);
     state.stats.handled += 1;
 
     state.ui.lastCallUid = null;
@@ -2339,6 +2603,7 @@
 
     state.ui.lastCallUid = null;
     state.ui.lastTranscript = "";
+    state.pendingDispatchUnitIds = [];
 
     log(`⏸️ Chamada em espera e devolvida à fila.`);
     renderAll();
@@ -2402,176 +2667,273 @@
     renderAll();
   }
 
-  function dispatchSelectedUnit() {
-    if (!state.shiftActive || !state.activeCall) return;
+  function addPendingDispatchUnit() {
+  if (!state.shiftActive || !state.activeCall) return;
+  const canDispatch = (state.activeCall.dispatchUnlocked || state.activeCall.isIncidentFocus);
+  if (!canDispatch) return;
 
-    // se estiver digitando, pula
-    skipTypewriter(el.callText);
+  const unitId = el.dispatchUnitSelect ? el.dispatchUnitSelect.value : "";
+  if (!unitId) return;
 
-    const c = state.activeCall;
+  const unit = state.units.find((u) => u.id === unitId);
+  if (!unit || unit.status !== "available" || unit.locked) return;
 
-    if (!c.dispatchUnlocked) {
-      log("⛔ Despacho bloqueado: faça as perguntas obrigatórias.");
-      return;
+  if (!Array.isArray(state.pendingDispatchUnitIds)) state.pendingDispatchUnitIds = [];
+  if (!state.pendingDispatchUnitIds.includes(unitId)) {
+    state.pendingDispatchUnitIds.push(unitId);
+    log(`➕ Unidade adicionada ao despacho: ${unit.name}`);
+  } else {
+    log(`ℹ️ Unidade já selecionada: ${unit.name}`);
+  }
+  renderDispatchSelectedList();
+  setButtons();
+}
+
+function dispatchSelectedUnit() {
+  if (!state.shiftActive || !state.activeCall) return;
+
+  // se estiver digitando, pula
+  skipTypewriter(el.callText);
+
+  const c = state.activeCall;
+
+  const canDispatch = (c.dispatchUnlocked || c.isIncidentFocus);
+  if (!canDispatch) {
+    log("⛔ Despacho bloqueado: faça as perguntas obrigatórias.");
+    return;
+  }
+
+  // Build list: pending + current selection (if any)
+  const pending = Array.isArray(state.pendingDispatchUnitIds) ? [...state.pendingDispatchUnitIds] : [];
+  const selected = el.dispatchUnitSelect ? el.dispatchUnitSelect.value : "";
+  if (selected && !pending.includes(selected)) pending.push(selected);
+
+  const unitIds = pending.filter(Boolean);
+  if (!unitIds.length) {
+    log("⚠️ Selecione uma unidade primeiro (ou adicione ao despacho).");
+    return;
+  }
+
+  // validate units
+  const units = unitIds.map((id) => state.units.find((u) => u.id === id)).filter(Boolean);
+  const invalid = units.find((u) => u.status !== "available" || u.locked);
+  if (!units.length || invalid) {
+    log("⚠️ Há unidade inválida/indisponível ou bloqueada na seleção.");
+    return;
+  }
+
+  // Reinforcement dispatch for an ongoing incident (no scoring again)
+  if (c.isIncidentFocus) {
+    const inc = getIncidentByUid(state.focusIncidentUid);
+    if (!inc) { log("⚠️ Incidente não encontrado."); return; }
+
+    for (const unit of units) {
+      const severityNow = inc.severity || c.severity;
+      const eta = computeEtaForUnit(unit, inc.call || c, severityNow);
+      const onsceneSec = computeOnsceneSec(severityNow, unit.role);
+
+      unit.status = "enroute";
+      unit.move = {
+        phase: "enroute",
+        remaining: eta,
+        target: { lat: inc.call.location.lat, lng: inc.call.location.lng },
+        returnEta: Math.max(8, Math.round(eta * 0.75)),
+        onsceneSec,
+      };
+      if (!inc.unitIds.includes(unit.id)) inc.unitIds.push(unit.id);
     }
 
-    const unitId = el.dispatchUnitSelect ? el.dispatchUnitSelect.value : "";
-    if (!unitId) {
-      log("⚠️ Selecione uma unidade primeiro.");
-      return;
-    }
+    upsertIncident(inc);
+    state.pendingDispatchUnitIds = [];
+    renderDispatchSelectedList();
+    log(`🚨 Reforço despachado para "${inc.title}". Unidades: ${units.map((u)=>u.name).join(", ")}`);
+    upsertUnitMarkers();
+    renderAll();
+    return;
+  }
 
-    const unit = state.units.find((u) => u.id === unitId);
-    if (!unit || unit.status !== "available") {
-      log("⚠️ Unidade inválida/indisponível.");
-      return;
-    }
+  // Normal dispatch from an active call (scores once based on the best-matching unit)
+  const def = c.def;
+  const severityNow = c.severity;
 
-    const def = c.def;
-    const severityNow = c.severity;
+  const correctRoles = (def.dispatch && Array.isArray(def.dispatch.correctRoles)) ? def.dispatch.correctRoles : ["any"];
+  const isTrote = (severityNow === "trote") || (c.confidenceTrote >= 6);
 
-    const correctRoles = (def.dispatch && Array.isArray(def.dispatch.correctRoles)) ? def.dispatch.correctRoles : ["any"];
-    const isTrote = (severityNow === "trote") || (c.confidenceTrote >= 6);
+  // Choose the "primary" unit for scoring: prefer one that matches correctRoles
+  let primary = units[0];
+  const match = units.find((u) => correctRoles.includes("any") || correctRoles.includes(u.role));
+  if (match) primary = match;
 
-    state.stats.dispatched += 1;
+  state.stats.dispatched += 1;
 
-    if (c.overdue && !c.overduePenalized) {
-      c.overduePenalized = true;
-      state.stats.overtime += 1;
-    }
+  if (c.overdue && !c.overduePenalized) {
+    c.overduePenalized = true;
+    state.stats.overtime += 1;
+  }
 
-    const correctRole = !isTrote && (correctRoles.includes(unit.role) || correctRoles.includes("any"));
+  const correctRole = !isTrote && (correctRoles.includes(primary.role) || correctRoles.includes("any"));
 
-    // Stage 6: simulate response time (ETA) without a map. Upgrades can reduce ETA.
-    const ROLE_ETA_BASE = {
-      area_patrol: 24,
-      civil_investigation: 32,
-      tactical_rota: 34,
-      shock_riot: 36,
-      air_eagle: 18,
-      bomb_gate: 40,
-      fire_engine: 28,
-      ladder_truck: 34,
-      fire_rescue: 26,
-      medic_ambulance: 22,
-      hazmat: 42,
-    };
-    const etaBase = ROLE_ETA_BASE[unit.role] || 28;
-    const etaMult = state.effects && typeof state.effects.etaMult === "number" ? state.effects.etaMult : 1.0;
-    const etaRand = Math.floor(Math.random() * 7); // 0..6
-    const eta = Math.max(8, Math.round(etaBase * etaMult) + etaRand);
-    const remaining = Math.max(0, c.callTTL || 0);
-    const lateMargin = state.effects && typeof state.effects.lateMarginSec === "number" ? state.effects.lateMarginSec : 0;
-    const responseLate = remaining < eta;
-    const responseTooLate = remaining + lateMargin < eta;
+  // Compute ETA and lateness relative to remaining TTL at dispatch time
+  const etaPrimary = computeEtaForUnit(primary, c, severityNow);
+  const remaining = Math.max(0, c.callTTL || 0);
+  const lateMargin = state.effects && typeof state.effects.lateMarginSec === "number" ? state.effects.lateMarginSec : 0;
+  const responseLate = remaining < etaPrimary;
+  const responseTooLate = remaining + lateMargin < etaPrimary;
 
-    // Stage 7B: start movement towards the incident on the map (visual + status)
-    if (c.location) {
+  // Move all selected units on map
+  if (c.location) {
+    for (const unit of units) {
+      const eta = computeEtaForUnit(unit, c, severityNow);
+      const onsceneSec = computeOnsceneSec(severityNow, unit.role);
       unit.status = "enroute";
       unit.move = {
         phase: "enroute",
         remaining: eta,
         target: { lat: c.location.lat, lng: c.location.lng },
         returnEta: Math.max(8, Math.round(eta * 0.75)),
+        onsceneSec,
       };
-      setIncidentOnMap(c);
-      upsertUnitMarkers();
-    } else {
+    }
+    setIncidentOnMap(c);
+    upsertUnitMarkers();
+  } else {
+    // Fallback without geo
+    for (const unit of units) {
       unit.status = "busy";
-      unit.move = { phase: "onscene", remaining: 5, target: unit.pos ? { ...unit.pos } : getCityCenter(state.cityId), returnEta: 12 };
+      unit.move = { phase: "onscene", remaining: computeOnsceneSec(severityNow, unit.role), target: unit.pos ? { ...unit.pos } : getCityCenter(state.cityId), returnEta: 12 };
     }
-
-    let outcome = computeOutcome({
-      isTrote,
-      correctRole,
-      overdue: c.overdue || responseLate,
-      severity: severityNow,
-    });
-
-    // If the response would arrive after the fail timer (too late), treat as fail even if role was correct.
-    if (!isTrote && correctRole && responseTooLate) {
-      outcome = {
-        outcome: "fail",
-        outcomeLabel: "CHEGOU TARDE",
-        description: "A unidade correta foi mobilizada, porém o tempo de resposta foi insuficiente. Consequências graves.",
-        livesSaved: 0,
-        penalty: true,
-      };
-    }
-
-    let scoreDelta = 0;
-    let xpDelta = 0;
-
-    if (outcome.outcome === "trote") {
-      scoreDelta = -12;
-      xpDelta = -2;
-      state.stats.wrong += 1;
-      addWarning("Despacho indevido em trote.");
-    } else if (outcome.outcome === "fail") {
-      scoreDelta = -12;
-      xpDelta = -3;
-      state.stats.wrong += 1;
-      addWarning("Despacho incorreto (falha operacional).");
-      state.career.totalFail += 1;
-    } else if (outcome.outcome === "partial") {
-      scoreDelta = Math.max(4, severityScore(severityNow) - 10);
-      scoreDelta -= 5;
-      xpDelta = 3;
-      state.stats.correct += 1;
-      state.career.totalSuccess += 1;
-    } else {
-      scoreDelta = severityScore(severityNow);
-      xpDelta = severityNow === "grave" ? 8 : 5;
-      state.stats.correct += 1;
-      state.career.totalSuccess += 1;
-    }
-
-    if (outcome.livesSaved > 0) {
-      state.career.totalLivesSaved += outcome.livesSaved;
-      state.stats.livesSaved += outcome.livesSaved;
-      scoreDelta += 6;
-      xpDelta += 4;
-    }
-
-    // Stage 6: upgrades can boost scoring on high-severity cases
-    const sevLower = String(severityNow).toLowerCase();
-    if ((sevLower === "grave" || sevLower === "critico") && (outcome.outcome === "success" || outcome.outcome === "partial")) {
-      const m = state.effects && typeof state.effects.graveScoreMult === "number" ? state.effects.graveScoreMult : 1.0;
-      scoreDelta = Math.round(scoreDelta * m);
-    }
-
-    if (!isTrote && c.overdue && String(severityNow).toLowerCase() === "grave") {
-      addWarning("Atraso crítico em ocorrência GRAVE.");
-    }
-
-    state.score += scoreDelta;
-    addXp(xpDelta);
-
-    if (outcome.outcome === "success") log(`✅ SUCESSO: despacho correto (+${scoreDelta}) XP +${xpDelta}`);
-    if (outcome.outcome === "partial") log(`⚠️ ${outcome.outcomeLabel}: (+${scoreDelta}) XP +${xpDelta}`);
-    if (outcome.outcome === "fail") log(`❌ FALHA: (${scoreDelta}) XP ${xpDelta}`);
-    if (outcome.outcome === "trote") log(`❌ TROTE: despacho indevido (${scoreDelta}) XP ${xpDelta}`);
-
-    setReport({
-      title: def.title,
-      severity: severityNow,
-      outcomeLabel: outcome.outcomeLabel,
-      description: outcome.description + ` (ETA: ${fmtTime(eta)})` + (outcome.livesSaved ? ` (Vidas salvas: ${outcome.livesSaved})` : ""),
-      unitName: unit.name,
-      unitRole: unit.role,
-      scoreDelta,
-      xpDelta,
-      handleTime: state.timeSec - c.startedAt,
-    });
-
-    state.activeCall = null;
-    state.ui.lastCallUid = null;
-    state.ui.lastTranscript = "";
-
-    renderAll();
   }
 
-  // ----------------------------
+  // Outcome model
+  let outcome = computeOutcome({
+    isTrote,
+    correctRole,
+    overdue: c.overdue || responseLate,
+    severity: severityNow,
+  });
+
+  if (!isTrote && correctRole && responseTooLate) {
+    outcome = {
+      outcome: "fail",
+      outcomeLabel: "CHEGOU TARDE",
+      description: "A unidade correta foi mobilizada, porém o tempo de resposta foi insuficiente. Consequências graves.",
+      livesSaved: 0,
+      penalty: true,
+    };
+  }
+
+  // Reinforcement bonus (simple): if >1 unit and severity is high, reduce penalty/boost score slightly
+  const sevLower = String(severityNow).toLowerCase();
+  const hasReinforcement = units.length >= 2;
+  const reinfBonus = (hasReinforcement && (sevLower === "grave" || sevLower === "critico")) ? 4 : 0;
+
+  let scoreDelta = 0;
+  let xpDelta = 0;
+
+  if (outcome.outcome === "trote") {
+    scoreDelta = -12;
+    xpDelta = -2;
+    state.stats.wrong += 1;
+    addWarning("Despacho indevido em trote.");
+  } else if (outcome.outcome === "fail") {
+    scoreDelta = -12;
+    xpDelta = -3;
+    state.stats.wrong += 1;
+    addWarning("Despacho incorreto (falha operacional).");
+    state.career.totalFail += 1;
+  } else if (outcome.outcome === "partial") {
+    scoreDelta = Math.max(4, severityScore(severityNow) - 10) - 5;
+    xpDelta = 3;
+    state.stats.correct += 1;
+    state.career.totalSuccess += 1;
+  } else {
+    scoreDelta = severityScore(severityNow);
+    xpDelta = severityNow === "grave" ? 8 : 5;
+    state.stats.correct += 1;
+    state.career.totalSuccess += 1;
+  }
+
+  if (outcome.livesSaved > 0) {
+    state.career.totalLivesSaved += outcome.livesSaved;
+    state.stats.livesSaved += outcome.livesSaved;
+    scoreDelta += 6;
+    xpDelta += 4;
+  }
+
+  // Upgrade scoring on high severity
+  if ((sevLower === "grave" || sevLower === "critico") && (outcome.outcome === "success" || outcome.outcome === "partial")) {
+    const m = state.effects && typeof state.effects.graveScoreMult === "number" ? state.effects.graveScoreMult : 1.0;
+    scoreDelta = Math.round(scoreDelta * m);
+  }
+
+  scoreDelta += reinfBonus;
+
+  state.score += scoreDelta;
+  addXp(xpDelta);
+
+  // Create and track incident (manager loop)
+  const incident = {
+    uid: c.uid,
+    title: def.title,
+    severity: severityNow,
+    createdAt: state.timeSec,
+    unitIds: units.map((u) => u.id),
+    call: c,
+    outcome: outcome.outcome,
+    outcomeLabel: outcome.outcomeLabel,
+    scoreDelta,
+    xpDelta,
+  };
+  upsertIncident(incident);
+
+  if (outcome.outcome === "success") log(`✅ SUCESSO: despacho correto (+${scoreDelta}) XP +${xpDelta}`);
+  if (outcome.outcome === "partial") log(`⚠️ ${outcome.outcomeLabel}: (+${scoreDelta}) XP +${xpDelta}`);
+  if (outcome.outcome === "fail") log(`❌ FALHA: (${scoreDelta}) XP ${xpDelta}`);
+  if (outcome.outcome === "trote") log(`❌ TROTE: despacho indevido (${scoreDelta}) XP ${xpDelta}`);
+
+  setReport({
+    title: def.title,
+    severity: severityNow,
+    outcomeLabel: outcome.outcomeLabel,
+    description: outcome.description + ` (ETA: ${fmtTime(etaPrimary)})` + (reinfBonus ? ` (Reforço: +${reinfBonus} pts)` : "") + (outcome.livesSaved ? ` (Vidas salvas: ${outcome.livesSaved})` : ""),
+    unitName: primary.name,
+    unitRole: primary.role,
+    scoreDelta,
+    xpDelta,
+    handleTime: Math.max(0, (state.timeSec - (c.startedAt || state.timeSec))),
+  });
+
+  // Clear active call and selection so player can handle the next one
+  state.activeCall = null;
+  state.focusIncidentUid = null;
+  state.pendingDispatchUnitIds = [];
+  state.ui.lastCallUid = null;
+  state.ui.lastTranscript = "";
+
+  renderAll();
+}
+
+function computeEtaForUnit(unit, call, severityNow) {
+  const ROLE_ETA_BASE = {
+    area_patrol: 24,
+    civil_investigation: 32,
+    tactical_rota: 34,
+    shock_riot: 36,
+    air_eagle: 18,
+    bomb_gate: 40,
+    fire_engine: 28,
+    ladder_truck: 34,
+    fire_rescue: 26,
+    medic_ambulance: 22,
+    hazmat: 42,
+  };
+  const etaBase = ROLE_ETA_BASE[unit.role] || 28;
+  const etaMult = state.effects && typeof state.effects.etaMult === "number" ? state.effects.etaMult : 1.0;
+  const etaRand = Math.floor(Math.random() * 7); // 0..6
+  return Math.max(8, Math.round(etaBase * etaMult) + etaRand);
+}
+
+// ----------------------------
   // Tick
   // ----------------------------
   function tick() {
@@ -2611,7 +2973,7 @@
       }
     }
 
-    if (hasActive) {
+    if (hasActive && !state.activeCall.isIncidentFocus) {
       // Stage 3: stress builds while handling an active call (pressure is higher on grave/critico)
       const pressure = severityToPressure(state.activeCall.severity);
       const weatherBoost = state.conditions.weather === "storm" ? 0.10 : state.conditions.weather === "rain" ? 0.05 : 0.0;
@@ -2658,6 +3020,8 @@
     updatePills();
     setButtons();
     renderQueue();
+    renderIncidents();
+    renderDispatchSelectedList();
     renderUnits();
     renderActiveCall(false);
     renderDynamicQuestions();
@@ -2825,6 +3189,7 @@
     if (el.btnAnswer) el.btnAnswer.addEventListener("click", answerNext);
     if (el.btnHold) el.btnHold.addEventListener("click", holdCall);
 
+    if (el.btnAddUnit) el.btnAddUnit.addEventListener("click", addPendingDispatchUnit);
     if (el.btnDispatch) el.btnDispatch.addEventListener("click", dispatchSelectedUnit);
     if (el.btnDismiss) el.btnDismiss.addEventListener("click", dismissCall);
 

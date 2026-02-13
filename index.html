@@ -198,12 +198,18 @@
           <label class="label" style="margin-top:8px;">Escolha a unidade</label>
           <select id="dispatchUnitSelect" class="select" disabled></select>
 
-          <div class="btnRow">
+          <div class="btnRow" style="margin-top:8px;">
+            <button id="btnAddUnit" class="btnGhost" disabled>Adicionar unidade</button>
             <button id="btnDispatch" class="btnPrimary" disabled>Despachar</button>
             <button id="btnDismiss" class="btnGhost" disabled>Encerrar chamada</button>
           </div>
 
-          <div class="hint">Você pontua por escolher a unidade certa (ou encerrar trote) dentro do tempo.</div>
+          <div class="hint" style="margin-top:10px;">
+            <b>Unidades selecionadas:</b>
+            <div id="dispatchSelectedList" class="miniList">—</div>
+            <div style="opacity:.8; margin-top:6px;">Dica: em ocorrências graves, enviar reforço (tática/aéreo/antibomba) pode reduzir risco e melhorar o resultado.</div>
+          </div>
+        </div>
         </div>
         </section>
 
@@ -213,7 +219,14 @@
           <div id="map" class="map"></div>
         </section>
 
-        <section class="card">
+        
+<section class="card">
+  <div class="cardTitle">Incidentes Ativos</div>
+  <div class="hint">Gerencie prioridades. Clique em um incidente para focar (ver detalhes / despachar reforço).</div>
+  <div id="incidentsList" class="queue">—</div>
+</section>
+
+<section class="card">
           <div class="cardTitle">Fila de Chamadas</div>
           <div id="queueList" class="queue">—</div>
         </section>
@@ -233,8 +246,8 @@
 
   <!-- MUITO IMPORTANTE: ordem e cache-busting -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="./data/cities.js?v=2026-02-13-Stage7Bfix4"></script>
-  <script src="./data/calls.js?v=2026-02-13-Stage7Bfix4"></script>
-  <script src="./script.js?v=2026-02-13-Stage7Bfix4"></script>
+  <script src="P26-02-13 19:10:37-Stage7C"></script>
+  <script src="P26-02-13 19:10:37-Stage7C"></script>
+  <script src="P26-02-13 19:10:37-Stage7C"></script>
 </body>
 </html>
