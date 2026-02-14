@@ -14,8 +14,8 @@
   const BUILD = {
     version: "1.0",
     stage: "7C",
-    builtAt: "2026-02-13 22:20:00",
-    tag: "7C-fixDeploy2-scroll",
+    builtAt: "2026-02-14 13:42:30",
+    tag: "7C-fixMobileNav",
   };
   const BUILD_TEXT = `Last Call Dispatch Operator ${BUILD.version} • Stage ${BUILD.stage} • Build ${BUILD.builtAt} (${BUILD.tag})`;
 
@@ -331,6 +331,9 @@
     screenSetup: $("screenSetup"),
     screenLobby: $("screenLobby"),
     screenShift: $("screenShift"),
+    btnNavSetup: $("btnNavSetup"),
+    btnNavLobby: $("btnNavLobby"),
+    btnNavShift: $("btnNavShift"),
     btnToLobby: $("btnToLobby"),
     btnBackSetup: $("btnBackSetup"),
     btnToShift: $("btnToShift"),
@@ -3052,6 +3055,11 @@ function computeEtaForUnit(unit, call, severityNow) {
   // Bind UI
   // ----------------------------
   function bind() {
+    // Global top navigation (always visible)
+    if (el.btnNavSetup) el.btnNavSetup.addEventListener("click", () => setScreen("setup"));
+    if (el.btnNavLobby) el.btnNavLobby.addEventListener("click", () => setScreen("lobby"));
+    if (el.btnNavShift) el.btnNavShift.addEventListener("click", () => setScreen("shift"));
+
     // Screen navigation
     if (el.btnToLobby) {
       el.btnToLobby.addEventListener("click", () => {

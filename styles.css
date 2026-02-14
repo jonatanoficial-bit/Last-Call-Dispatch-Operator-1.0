@@ -179,6 +179,30 @@ main{
   backdrop-filter: blur(10px);
 }
 
+/* Always-visible navigation (mobile friendly) */
+.topNav{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  margin-right:6px;
+}
+.navBtn{
+  padding:10px 12px;
+  border-radius:12px;
+  border:1px solid var(--stroke);
+  background: rgba(0,0,0,0.22);
+  color: rgba(233,240,255,0.92);
+  font-weight: 800;
+  letter-spacing: .2px;
+  cursor:pointer;
+}
+.navBtn:active{ transform: translateY(1px); }
+
+@media (max-width: 860px){
+  .topNav{ margin-right: 10px; gap:8px; }
+  .navBtn{ padding:8px 10px; font-size: 12px; border-radius: 10px; }
+}
+
 .build{
   margin-top: 2px;
   font-size: 12px;

@@ -26,7 +26,7 @@
   </style>
 
   <!-- Version tag in query helps reduce stale cache on GitHub Pages -->
-  <link rel="stylesheet" href="./styles.css?v=2026-02-13-Stage7CfixDeploy" />
+  <link rel="stylesheet" href="./styles.css?v=2026-02-14-Stage7CfixMobileNav" />
 
   <!-- Leaflet (mapa) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -42,6 +42,13 @@
           <div class="subtitle">Simulador de Central de Emergência</div>
           <div class="build" id="buildInfo">Build —</div>
         </div>
+      </div>
+
+      <!-- Always-visible navigation (prevents "stuck in plantão" on mobile scroll/cache quirks) -->
+      <div class="topNav" aria-label="Navegação">
+        <button id="btnNavSetup" class="navBtn" type="button">Config</button>
+        <button id="btnNavLobby" class="navBtn" type="button">Lobby</button>
+        <button id="btnNavShift" class="navBtn" type="button">Plantão</button>
       </div>
 
       <div class="hud">
@@ -247,8 +254,8 @@
 
   <!-- MUITO IMPORTANTE: ordem e cache-busting -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="./data/cities.js?v=2026-02-13-Stage7CfixDeploy"></script>
-  <script src="./data/calls.js?v=2026-02-13-Stage7CfixDeploy"></script>
-  <script src="./script.js?v=2026-02-13-Stage7CfixDeploy"></script>
+  <script src="./data/cities.js?v=2026-02-14-Stage7CfixMobileNav"></script>
+  <script src="./data/calls.js?v=2026-02-14-Stage7CfixMobileNav"></script>
+  <script src="./script.js?v=2026-02-14-Stage7CfixMobileNav"></script>
 </body>
 </html>
