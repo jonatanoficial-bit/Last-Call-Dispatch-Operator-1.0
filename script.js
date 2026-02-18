@@ -8,7 +8,7 @@
 (function () {
   "use strict";
 
-const BUILD_TAG = "Stage 7C • Build 2026-02-18 12:53:31 (7C-fixScreens-loadorder)";
+const BUILD_TAG = "Stage 7C • Build 2026-02-18 19:42:30 (7C-fixScreens-loadorder)";
 
   // ----------------------------
   // Build info (always visible)

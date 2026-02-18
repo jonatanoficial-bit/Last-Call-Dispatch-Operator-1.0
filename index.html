@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport"/>
 <title>Last Call Dispatch Operator</title>
@@ -27,7 +30,6 @@
     .map { height: 320px; min-height: 320px; }
   </style>
 <!-- Version tag in query helps reduce stale cache on GitHub Pages -->
-<link href="P26-02-14-7CfixStart" rel="stylesheet"/>
 <!-- Leaflet (mapa) -->
 <link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet"/>
 <link href="styles.css" rel="stylesheet"/><style id="critical-screen-css">
@@ -36,7 +38,14 @@ html,body{height:100%;margin:0;overflow:hidden !important;}
 main{flex:1;min-height:0;position:relative;overflow:hidden;}
 .screen{position:absolute;inset:0;overflow:auto;-webkit-overflow-scrolling:touch;display:none;}
 .screen.active{display:block;}
-</style></head>
+</style>
+<style>
+html,body{height:100%;margin:0;overflow:hidden!important}
+.screen{display:none}
+.screen.active{display:block}
+</style>
+
+</head>
 <body>
 <div class="app">
 <header class="topbar">
