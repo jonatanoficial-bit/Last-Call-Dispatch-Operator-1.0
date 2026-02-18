@@ -19,14 +19,18 @@
     html, body { height: 100%; margin: 0; overflow: hidden !important; }
     .app { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
     main { position: relative; flex: 1; overflow: hidden; }
-    .screen { position: absolute; inset: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; opacity: 0; pointer-events: none; }
-    .screen.active { opacity: 1; pointer-events: auto; }
+    /*
+      Critical: force true screen switching even if external CSS is stale/overrides.
+      Use display:none/block with !important so screens cannot stack.
+    */
+    .screen { display: none !important; position: absolute !important; inset: 0 !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch; opacity: 0; pointer-events: none; }
+    .screen.active { display: block !important; opacity: 1 !important; pointer-events: auto !important; }
     /* Mapa precisa de altura para não "sumir" */
     .map { height: 320px; min-height: 320px; }
   </style>
 
   <!-- Version tag in query helps reduce stale cache on GitHub Pages -->
-  <link rel="stylesheet" href="./styles.css?v=2026-02-14-Stage7CfixMobileNav" />
+  <link rel="stylesheet" href="P26-02-14-7CfixStart" />
 
   <!-- Leaflet (mapa) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -254,8 +258,8 @@
 
   <!-- MUITO IMPORTANTE: ordem e cache-busting -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="./data/cities.js?v=2026-02-14-Stage7CfixMobileNav"></script>
-  <script src="./data/calls.js?v=2026-02-14-Stage7CfixMobileNav"></script>
-  <script src="./script.js?v=2026-02-14-Stage7CfixMobileNav"></script>
+  <script src="P26-02-14-7CfixStart"></script>
+  <script src="P26-02-14-7CfixStart"></script>
+  <script src="P26-02-14-7CfixStart"></script>
 </body>
 </html>

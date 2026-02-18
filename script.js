@@ -14,8 +14,8 @@
   const BUILD = {
     version: "1.0",
     stage: "7C",
-    builtAt: "2026-02-14 13:42:30",
-    tag: "7C-fixMobileNav",
+    builtAt: "2026-02-18 12:33:02",
+    tag: "7C-fixStart-selfcheck",
   };
   const BUILD_TEXT = `Last Call Dispatch Operator ${BUILD.version} • Stage ${BUILD.stage} • Build ${BUILD.builtAt} (${BUILD.tag})`;
 
@@ -1047,6 +1047,23 @@
     return [];
   }
 
+
+function selfCheck() {
+  const calls = getCalls();
+  const cities = getCities();
+  if (!cities.length) {
+    log("❌ ERRO: Nenhuma cidade carregada. Verifique data/cities.js.");
+  } else {
+    log(`🌍 Cidades carregadas: ${cities.length}`);
+  }
+  if (!calls.length) {
+    log("❌ ERRO: Nenhuma chamada carregada. Verifique data/calls.js (CALLS vazio ou não carregou).");
+    log("💡 Dica: no GitHub Pages, faça hard refresh (Ctrl+F5) ou limpe cache.");
+  } else {
+    log(`📞 Chamadas carregadas: ${calls.length}`);
+  }
+}
+
   // ----------------------------
   // Stage 5: DLC loader (static JSON packs, no API)
   // Folder structure:
@@ -1084,6 +1101,7 @@
         log(`🧩 DLC: ${loaded} pacote(s) carregado(s).`);
         // Refresh UI that depends on datasets
         populateCities();
+    selfCheck();
         renderUnits();
         renderAll();
       }
@@ -1211,10 +1229,19 @@
   function setScreen(view) {
     state.ui.view = view;
     const screens = [el.screenSetup, el.screenLobby, el.screenShift].filter(Boolean);
-    screens.forEach((s) => s.classList.remove("active"));
+    // Hard switch: remove active and also force display none/block so screens never stack
+    // even if external CSS loads stale/overrides on GitHub Pages.
+    screens.forEach((s) => {
+      s.classList.remove("active");
+      s.style.display = "none";
+    });
     if (view === "setup" && el.screenSetup) el.screenSetup.classList.add("active");
     if (view === "lobby" && el.screenLobby) el.screenLobby.classList.add("active");
     if (view === "shift" && el.screenShift) el.screenShift.classList.add("active");
+
+    if (view === "setup" && el.screenSetup) el.screenSetup.style.display = "block";
+    if (view === "lobby" && el.screenLobby) el.screenLobby.style.display = "block";
+    if (view === "shift" && el.screenShift) el.screenShift.style.display = "block";
 
     // Reset scroll on the active screen container (important: each screen is its own
     // scroll container; window.scrollTo() does not affect it). This prevents the UI
@@ -2479,6 +2506,8 @@ if (def.hint) convo += `[Dica] ${def.hint}\n`;
   // Ações do jogador
   // ----------------------------
   function startShift() {
+    try {
+
     if (state.shiftActive) return;
 
     state.cityId = el.citySelect ? (el.citySelect.value || getCities()[0]?.id || "br_sp") : "br_sp";
@@ -2529,12 +2558,25 @@ if (def.hint) convo += `[Dica] ${def.hint}\n`;
 
     spawnCall();
     spawnCall();
+if (state.queue.length === 0) {
+  log("⚠️ Nenhuma chamada entrou na fila. Isso geralmente significa CALLS vazio ou filtro muito restrito.");
+  log("🔧 Verifique no console se data/calls.js carregou e se a agência selecionada tem ocorrências.");
+}
+
 
     if (state.tickInterval) clearInterval(state.tickInterval);
     state.tickInterval = setInterval(tick, 1000);
 
     renderAll();
-  }
+  
+    } catch (e) {
+      console.error(e);
+      log(`❌ Falha em startShift: ${e && e.message ? e.message : e}`);
+      state.shiftActive = false;
+      if (el.btnStartShift) el.btnStartShift.disabled = false;
+      if (el.btnEndShift) el.btnEndShift.disabled = true;
+    }
+}
 
   function endShift() {
     if (!state.shiftActive) return;
@@ -3279,6 +3321,23 @@ function computeEtaForUnit(unit, call, severityNow) {
     log("✅ Sistema pronto. Configure e avance para o lobby.");
     log("✅ Typewriter: mais humano + toque para pular.");
   }
+
+
+// ----------------------------
+// Robust error surfacing (avoid silent failures on mobile/GitHub Pages)
+// ----------------------------
+window.addEventListener("error", (ev) => {
+  try {
+    const msg = (ev && (ev.message || ev.error?.message)) ? (ev.message || ev.error?.message) : String(ev);
+    log(`❌ Erro: ${msg}`);
+  } catch {}
+});
+window.addEventListener("unhandledrejection", (ev) => {
+  try {
+    const msg = ev && ev.reason ? (ev.reason.message || String(ev.reason)) : "Promise rejection";
+    log(`❌ Erro: ${msg}`);
+  } catch {}
+});
 
   window.__LCDO = { state };
 
