@@ -8,7 +8,7 @@
 (function () {
   "use strict";
 
-const BUILD_TAG = "Stage 7C • Build 2026-02-18 19:42:30 (7C-fixScreens-loadorder)";
+const BUILD_TAG = "Stage 7C • Build 2026-02-18 20:16:20 (7C-fixAssets-favicon-markers)";
 
   // ----------------------------
   // Build info (always visible)
@@ -142,6 +142,18 @@ const BUILD_TAG = "Stage 7C • Build 2026-02-18 19:42:30 (7C-fixScreens-loadord
     }
 
     const center = getCityCenter(state.cityId);
+
+    // Force local Leaflet marker icons to avoid CDN marker image warnings / 404s
+    try {
+      if (window.L && L.Icon && L.Icon.Default) {
+        L.Icon.Default.mergeOptions({
+          iconRetinaUrl: "./img/marker-icon-2x.png",
+          iconUrl: "./img/marker-icon.png",
+          shadowUrl: "./img/marker-shadow.png",
+        });
+      }
+    } catch (e) { /* ignore */ }
+
 
     if (!MAP.map) {
       MAP.map = L.map(mapEl, {
@@ -1553,6 +1565,18 @@ function selfCheck() {
 
       // Attach base position + current position for map movement
       const center = getCityCenter(state.cityId);
+
+    // Force local Leaflet marker icons to avoid CDN marker image warnings / 404s
+    try {
+      if (window.L && L.Icon && L.Icon.Default) {
+        L.Icon.Default.mergeOptions({
+          iconRetinaUrl: "./img/marker-icon-2x.png",
+          iconUrl: "./img/marker-icon.png",
+          shadowUrl: "./img/marker-shadow.png",
+        });
+      }
+    } catch (e) { /* ignore */ }
+
       state.units = state.units.map((u, idx) => {
         const base = jitterPoint(center, 1.2 + (idx * 0.15));
         return {
@@ -1869,6 +1893,18 @@ function getProtocolDef(callDef) {
     const baseSev = (def.baseSeverity || "leve").toLowerCase();
     const worsenMult = typeof eff.worsenTimeMult === "number" ? eff.worsenTimeMult : 1.0;
     const center = getCityCenter(state.cityId);
+
+    // Force local Leaflet marker icons to avoid CDN marker image warnings / 404s
+    try {
+      if (window.L && L.Icon && L.Icon.Default) {
+        L.Icon.Default.mergeOptions({
+          iconRetinaUrl: "./img/marker-icon-2x.png",
+          iconUrl: "./img/marker-icon.png",
+          shadowUrl: "./img/marker-shadow.png",
+        });
+      }
+    } catch (e) { /* ignore */ }
+
     const addr = genAddress(state.cityId);
     const loc = jitterPoint(center, 4.0);
     return {
