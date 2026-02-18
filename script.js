@@ -8,14 +8,16 @@
 (function () {
   "use strict";
 
+const BUILD_TAG = "Stage 7C • Build 2026-02-18 12:53:31 (7C-fixScreens-loadorder)";
+
   // ----------------------------
   // Build info (always visible)
   // ----------------------------
   const BUILD = {
     version: "1.0",
     stage: "7C",
-    builtAt: "2026-02-18 12:33:02",
-    tag: "7C-fixStart-selfcheck",
+    builtAt: "2026-02-18 12:53:31",
+    tag: "7C-fixScreens-loadorder",
   };
   const BUILD_TEXT = `Last Call Dispatch Operator ${BUILD.version} • Stage ${BUILD.stage} • Build ${BUILD.builtAt} (${BUILD.tag})`;
 
