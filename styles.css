@@ -490,3 +490,27 @@ body[data-agency="fire"] {
 /* Stage 7C */
 .miniList{display:flex;flex-direction:column;gap:6px;margin-top:8px}
 .miniItem{padding:8px 10px;border-radius:12px;background:rgba(8,10,18,0.45);border:1px solid rgba(255,255,255,0.10);font-size:12px;line-height:1.2}
+
+/* --- FIX: garante que a navegação fique clicável acima do Leaflet/mapa --- */
+.topNav{
+  position: relative;
+  z-index: 5000;
+  pointer-events: auto;
+}
+
+/* header/hud também acima */
+.topbar, .header, .hud{
+  position: relative;
+  z-index: 4000;
+}
+
+/* mapa sempre abaixo do HUD */
+#map, .mapWrap, .mapCard{
+  position: relative;
+  z-index: 1;
+}
+
+/* Leaflet às vezes cria panes com z-index alto demais */
+.leaflet-pane, .leaflet-control, .leaflet-top, .leaflet-bottom{
+  z-index: 100 !important;
+}
