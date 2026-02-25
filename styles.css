@@ -491,26 +491,29 @@ body[data-agency="fire"] {
 .miniList{display:flex;flex-direction:column;gap:6px;margin-top:8px}
 .miniItem{padding:8px 10px;border-radius:12px;background:rgba(8,10,18,0.45);border:1px solid rgba(255,255,255,0.10);font-size:12px;line-height:1.2}
 
-/* --- FIX: garante que a navegação fique clicável acima do Leaflet/mapa --- */
-.topNav{
-  position: relative;
-  z-index: 5000;
-  pointer-events: auto;
-}
 
-/* header/hud também acima */
-.topbar, .header, .hud{
-  position: relative;
-  z-index: 4000;
+/* === FIX DEFINITIVO: NAV acima do Leaflet (cliques funcionam) === */
+.topbar{
+  position: fixed !important;
+  top: 12px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: min(1100px, calc(100% - 24px)) !important;
+  z-index: 999999 !important;
+  pointer-events: auto !important;
 }
-
-/* mapa sempre abaixo do HUD */
-#map, .mapWrap, .mapCard{
-  position: relative;
-  z-index: 1;
+main{
+  padding-top: 104px !important;
 }
-
-/* Leaflet às vezes cria panes com z-index alto demais */
+.topNav, .hud, .brand{
+  position: relative !important;
+  z-index: 1000000 !important;
+  pointer-events: auto !important;
+}
+/* Leaflet sempre abaixo do header */
+.leaflet-container, #map, .mapWrap, .mapCard{
+  z-index: 0 !important;
+}
 .leaflet-pane, .leaflet-control, .leaflet-top, .leaflet-bottom{
-  z-index: 100 !important;
+  z-index: 10 !important;
 }

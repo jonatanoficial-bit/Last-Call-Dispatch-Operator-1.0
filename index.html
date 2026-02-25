@@ -30,8 +30,7 @@
     .screen.active { display: block !important; opacity: 1 !important; pointer-events: auto !important; }
     /* Mapa precisa de altura para não "sumir" */
     .map { height: 320px; min-height: 320px; }
-.topNav{position:relative;z-index:5000;pointer-events:auto;}.hud{position:relative;z-index:4000;}#map,.mapWrap,.mapCard{position:relative;z-index:1;}.leaflet-pane,.leaflet-control,.leaflet-top,.leaflet-bottom{z-index:100 !important;}
-</style>
+  </style>
 <!-- Version tag in query helps reduce stale cache on GitHub Pages -->
 <!-- Leaflet (mapa) -->
 <link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet"/>
@@ -46,6 +45,16 @@ main{flex:1;min-height:0;position:relative;overflow:hidden;}
 html,body{height:100%;margin:0;overflow:hidden!important}
 .screen{display:none}
 .screen.active{display:block}
+</style>
+
+
+<style>
+/* FIX DEFINITIVO: NAV acima do Leaflet (critical) */
+.topbar{position:fixed!important;top:12px!important;left:50%!important;transform:translateX(-50%)!important;width:min(1100px,calc(100% - 24px))!important;z-index:999999!important;pointer-events:auto!important;}
+main{padding-top:104px!important;}
+.topNav,.hud,.brand{position:relative!important;z-index:1000000!important;pointer-events:auto!important;}
+.leaflet-container,#map,.mapWrap,.mapCard{z-index:0!important;}
+.leaflet-pane,.leaflet-control,.leaflet-top,.leaflet-bottom{z-index:10!important;}
 </style>
 
 </head>
