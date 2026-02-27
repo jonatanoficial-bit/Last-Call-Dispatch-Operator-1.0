@@ -117,52 +117,9 @@ const BUILD_TAG = "Stage 7C • Build 2026-02-25 19:47:04 (7C-fixNavOverlay-fina
     lastCityId: null,
   };
 
-  function isShiftScreenActive() {
-    // Defensive: only create/resize Leaflet when the Plantão screen is truly active/visible.
-    return state?.ui?.view === "shift" && !!el?.screenShift?.classList?.contains("active");
-  }
-
-  function destroyMap() {
-    // Fully tear down Leaflet so it never renders/captures input behind other screens.
-    try {
-      if (MAP.incidentMarker && MAP.map) {
-        MAP.map.removeLayer(MAP.incidentMarker);
-      }
-    } catch (e) { /* ignore */ }
-    MAP.incidentMarker = null;
-
-    try {
-      if (MAP.map) {
-        for (const m of MAP.unitMarkers.values()) {
-          try { MAP.map.removeLayer(m); } catch (e) { /* ignore */ }
-        }
-      }
-    } catch (e) { /* ignore */ }
-    MAP.unitMarkers.clear();
-
-    try {
-      if (MAP.map) {
-        MAP.map.off();
-        MAP.map.remove();
-      }
-    } catch (e) { /* ignore */ }
-    MAP.map = null;
-    MAP.tiles = null;
-    MAP.lastCityId = null;
-
-    const mapEl = document.getElementById("map");
-    if (mapEl) {
-      mapEl.innerHTML = "";
-      delete mapEl.dataset.fallbackShown;
-    }
-  }
-
   function ensureMap() {
     const mapEl = document.getElementById("map");
     if (!mapEl) return;
-
-    // Never initialize the map outside the Plantão screen.
-    if (!isShiftScreenActive()) return;
     // If Leaflet isn't available (CDN blocked/offline), show a clear fallback
     // message instead of a blank card.
     if (!window.L) {
@@ -1284,7 +1241,6 @@ function selfCheck() {
   }
 
   function setScreen(view) {
-    const prevView = state.ui.view;
     state.ui.view = view;
     const screens = [el.screenSetup, el.screenLobby, el.screenShift].filter(Boolean);
     // Hard switch: remove active and also force display none/block so screens never stack
@@ -1309,15 +1265,10 @@ function selfCheck() {
       view === "setup" ? el.screenSetup : view === "lobby" ? el.screenLobby : view === "shift" ? el.screenShift : null;
     if (active) active.scrollTop = 0;
 
-    // Screen lifecycle
-    if (prevView === "shift" && view !== "shift") {
-      destroyMap();
-    }
     if (view === "shift") {
       // Map needs a visible container to initialize correctly
       setTimeout(() => {
         ensureMap();
-        try { MAP.map && MAP.map.invalidateSize && MAP.map.invalidateSize(); } catch (e) { /* ignore */ }
         upsertUnitMarkers();
       }, 0);
     }

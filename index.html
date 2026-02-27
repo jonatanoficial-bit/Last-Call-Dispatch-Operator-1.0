@@ -34,7 +34,7 @@
 <!-- Version tag in query helps reduce stale cache on GitHub Pages -->
 <!-- Leaflet (mapa) -->
 <link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet"/>
-<link href="styles.css" rel="stylesheet"/><style id="critical-screen-css">
+<link href="styles.css" id="appStyles" rel="stylesheet"/><style id="critical-screen-css">
 html,body{height:100%;margin:0;overflow:hidden !important;}
 #app{height:100vh;display:flex;flex-direction:column;}
 main{flex:1;min-height:0;position:relative;overflow:hidden;}
@@ -249,5 +249,16 @@ main{padding-top:104px!important;}
 
 
 
-<script defer="defer" src="./data/cities.js"></script><script defer="defer" src="./data/calls.js"></script><script defer="defer" src="./script.js"></script></body>
+<script defer="defer" src="./data/cities.js?v=1"></script><script defer="defer" src="./data/calls.js?v=1"></script><script>
+// Cache-busting defensivo para GitHub Pages (evita carregar JS/CSS antigos do navegador/CDN)
+(function(){
+  const v = Date.now().toString();
+  const link = document.getElementById("appStyles");
+  if (link && link.href && !link.href.includes("?v=")) link.href = link.getAttribute("href") + "?v=" + v;
+  const s = document.createElement("script");
+  s.defer = true;
+  s.src = "./script.js?v=" + v;
+  document.body.appendChild(s);
+})();
+</script></body>
 </html>
