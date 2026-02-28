@@ -177,9 +177,32 @@ const BUILD_TAG = "Stage 7C • Build 2026-02-25 19:47:04 (7C-fixNavOverlay-fina
       for (const m of MAP.unitMarkers.values()) MAP.map.removeLayer(m);
       MAP.unitMarkers.clear();
     }
+      refreshMapSize();
+    }
+    // Keep size correct even when no city switch happened
+    refreshMapSize();
   }
 
-  function setIncidentOnMap(call) {
+  
+
+  // Leaflet sometimes initializes while the container is still settling (screen switch,
+  // fonts loading, scrollbars). This helper aggressively refreshes the map size a few
+  // times to avoid the "tiny map in the corner" issue.
+  function refreshMapSize() {
+    if (!MAP.map || !window.L) return;
+    try { MAP.map.invalidateSize(true); } catch (e) {}
+    // Double-RAF is a reliable way to wait for layout.
+    try {
+      requestAnimationFrame(() => {
+        try { MAP.map.invalidateSize(true); } catch (e) {}
+        requestAnimationFrame(() => {
+          try { MAP.map.invalidateSize(true); } catch (e) {}
+        });
+      });
+    } catch (e) {}
+  }
+
+function setIncidentOnMap(call) {
     if (!call || !call.location) return;
     ensureMap();
     if (!MAP.map || !window.L) return;
@@ -357,6 +380,8 @@ const BUILD_TAG = "Stage 7C • Build 2026-02-25 19:47:04 (7C-fixNavOverlay-fina
 
     btnStartShift: $("btnStartShift"),
     btnEndShift: $("btnEndShift"),
+    btnStartShift2: $("btnStartShift2"),
+    btnEndShift2: $("btnEndShift2"),
 
     unitsList: $("unitsList"),
     log: $("log"),
@@ -1270,7 +1295,11 @@ function selfCheck() {
       setTimeout(() => {
         ensureMap();
         upsertUnitMarkers();
+        refreshMapSize();
       }, 0);
+      // Extra refreshes for browsers that compute layout a bit later (Edge/slow devices)
+      setTimeout(refreshMapSize, 120);
+      setTimeout(refreshMapSize, 400);
     }
     // Keep it feeling like a proper app screen
     window.scrollTo({ top: 0, behavior: "auto" });
@@ -2583,6 +2612,8 @@ if (def.hint) convo += `[Dica] ${def.hint}\n`;
 
     if (el.btnStartShift) el.btnStartShift.disabled = true;
     if (el.btnEndShift) el.btnEndShift.disabled = false;
+    if (el.btnStartShift2) el.btnStartShift2.disabled = true;
+    if (el.btnEndShift2) el.btnEndShift2.disabled = false;
 
     renderUnits();
 
@@ -2630,6 +2661,8 @@ if (state.queue.length === 0) {
 
     if (el.btnStartShift) el.btnStartShift.disabled = false;
     if (el.btnEndShift) el.btnEndShift.disabled = true;
+    if (el.btnStartShift2) el.btnStartShift2.disabled = false;
+    if (el.btnEndShift2) el.btnEndShift2.disabled = true;
 
     log("🛑 Turno encerrado.");
 
