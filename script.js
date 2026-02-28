@@ -3154,7 +3154,7 @@ function computeEtaForUnit(unit, call, severityNow) {
           }
 
           // If data isn't ready yet, show a helpful message instead of doing nothing.
-          if (!verifyDataLoaded || (typeof verifyDataLoaded === "function" && !verifyDataLoaded())) {
+          if (typeof verifyDataLoaded === "function" && !verifyDataLoaded()) {
             log("⏳ Dados ainda carregando... tente novamente em 1 segundo.");
             return;
           }
