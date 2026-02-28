@@ -244,21 +244,11 @@ main{padding-top:104px!important;}
 </section>
 </div>
 </main></div>
-<!-- MUITO IMPORTANTE: ordem e cache-busting -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-
-
-<script defer="defer" src="./data/cities.js?v=1"></script><script defer="defer" src="./data/calls.js?v=1"></script><script>
-// Cache-busting defensivo para GitHub Pages (evita carregar JS/CSS antigos do navegador/CDN)
-(function(){
-  const v = Date.now().toString();
-  const link = document.getElementById("appStyles");
-  if (link && link.href && !link.href.includes("?v=")) link.href = link.getAttribute("href") + "?v=" + v;
-  const s = document.createElement("script");
-  s.defer = true;
-  s.src = "./script.js?v=" + v;
-  document.body.appendChild(s);
-})();
-</script></body>
+</div>
+</main></div>
+<!-- Scripts (ordem importante): dados -> app -->
+<script src="./data/cities.js?v=1"></script>
+<script src="./data/calls.js?v=1"></script>
+<script defer src="./script.js?v=20260218-125331"></script>
+</body>
 </html>

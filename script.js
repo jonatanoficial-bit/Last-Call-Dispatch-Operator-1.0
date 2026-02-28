@@ -3144,26 +3144,43 @@ function computeEtaForUnit(unit, call, severityNow) {
     if (el.btnToLobby) {
       el.btnToLobby.addEventListener("click", () => {
         // Persist current selections before moving on
-        if (el.citySelect) state.cityId = el.citySelect.value;
-        if (el.agencySelect) state.agency = el.agencySelect.value || "police";
-        if (el.difficultySelect) state.difficulty = el.difficultySelect.value || "normal";
+        try {
+          if (el.citySelect) state.cityId = el.citySelect.value;
+          if (el.agencySelect) state.agency = el.agencySelect.value || "police";
+          if (el.difficultySelect) state.difficulty = el.difficultySelect.value || "normal";
 
-        if (document && document.body) {
-          document.body.dataset.agency = state.agency || "police";
+          if (document && document.body) {
+            document.body.dataset.agency = state.agency || "police";
+          }
+
+          // If data isn't ready yet, show a helpful message instead of doing nothing.
+          if (!verifyDataLoaded || (typeof verifyDataLoaded === "function" && !verifyDataLoaded())) {
+            log("⏳ Dados ainda carregando... tente novamente em 1 segundo.");
+            return;
+          }
+
+          // Stage 4: generate objectives for the next shift and persist settings
+          if (typeof generateShiftObjectives === "function") generateShiftObjectives();
+          if (typeof saveProfile === "function") saveProfile();
+
+          if (typeof renderUnits === "function") renderUnits();
+          if (typeof refreshLobbySummary === "function") refreshLobbySummary();
+        } catch (err) {
+          console.error("❌ Erro ao avançar para o Lobby:", err);
+          try { log("❌ Erro ao avançar para o Lobby: " + (err && err.message ? err.message : err)); } catch {}
+        } finally {
+          // Never trap the player on Setup: always switch to Lobby.
+          try { setScreen("lobby"); } catch {}
+          try {
+            if (typeof renderLobbyCareer === "function") renderLobbyCareer();
+            if (typeof renderLobbyCampaign === "function") renderLobbyCampaign();
+            if (typeof renderLobbyEconomy === "function") renderLobbyEconomy();
+            if (typeof renderLobbyObjectives === "function") renderLobbyObjectives();
+            if (typeof renderAll === "function") renderAll();
+          } catch (err2) {
+            console.error("❌ Erro ao renderizar Lobby:", err2);
+          }
         }
-
-        // Stage 4: generate objectives for the next shift and persist settings
-        generateShiftObjectives();
-        saveProfile();
-
-        renderUnits();
-        refreshLobbySummary();
-        setScreen("lobby");
-        renderLobbyCareer();
-        renderLobbyCampaign();
-        renderLobbyEconomy();
-        renderLobbyObjectives();
-        renderAll();
       });
     }
 
