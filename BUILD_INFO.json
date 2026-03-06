@@ -1,0 +1,13 @@
+{
+  "name": "Last Call Dispatch Operator",
+  "version": "1.2.1",
+  "phase": "Phase 3.5 - Stability and Content Upgrade",
+  "build": "2026-03-06 10:05:00 UTC",
+  "completion_percent": 64,
+  "focus": [
+    "Correção do fluxo de atendimento e fallback de fila",
+    "Carga de conteúdo extra (Phase 2 + Phase 3)",
+    "Preparação do projeto para roadmap comercial"
+  ],
+  "next_phase": "Phase 4 - Operational Map and Visible Dispatch"
+}

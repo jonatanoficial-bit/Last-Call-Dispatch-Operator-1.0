@@ -8,21 +8,21 @@
 (function () {
   "use strict";
 
-const BUILD_TAG = "Stage 8A • Build 2026-03-06 09:26:38 BRT (stability-br-us-ems)";
+const BUILD_TAG = "Stage 9 • Build 2026-03-06 10:05:00 UTC (phase3-content-stability)";
 
   // ----------------------------
   // Build info (always visible)
   // ----------------------------
   const BUILD = {
-    version: "1.1.1",
-    stage: "8B",
-    builtAt: "2026-03-06 09:33:52 BRT",
-    tag: "stability-br-us-ems",
+    version: "1.2.1",
+    stage: "9",
+    builtAt: "2026-03-06 10:05:00 UTC",
+    tag: "phase3-content-stability",
   };
   const PROJECT = {
-    completion: 56,
+    completion: 64,
     roadmapStages: 8,
-    focus: "Correção crítica do fluxo de atendimento e dos controles duplicados do turno",
+    focus: "Estabilidade do atendimento, expansão de conteúdo Phase 3 e preparo da base para roadmap comercial",
   };
   const BUILD_TEXT = `Last Call Dispatch Operator ${BUILD.version} • Stage ${BUILD.stage} • Build ${BUILD.builtAt} • Conclusão ${PROJECT.completion}%`; 
 
@@ -1137,6 +1137,30 @@ function selfCheck() {
   //   /dlc/manifest.json -> { "packs": [ { "id": "...", "path": "./dlc/packs/...json" } ] }
   // Each pack JSON can include: { "cities": [...], "calls": [...] }
   // ----------------------------
+  async function tryLoadContentPacks() {
+    const packPaths = [
+      "./data/calls/phase2_calls.json",
+      "./data/calls/phase3_calls.json",
+    ];
+    let loaded = 0;
+    for (const path of packPaths) {
+      try {
+        const res = await fetch(path, { cache: "no-store" });
+        if (!res.ok) continue;
+        const data = await res.json();
+        if (!data || !Array.isArray(data.calls) || !data.calls.length) continue;
+        const existingIds = new Set((Array.isArray(window.CALLS) ? window.CALLS : []).map((c) => c && c.id).filter(Boolean));
+        const freshCalls = data.calls.filter((c) => c && c.id && !existingIds.has(c.id));
+        if (!freshCalls.length) continue;
+        window.CALLS = Array.isArray(window.CALLS) ? [...window.CALLS, ...freshCalls] : [...freshCalls];
+        loaded += freshCalls.length;
+      } catch {
+        // optional content pack
+      }
+    }
+    if (loaded) log(`🧠 Conteúdo extra carregado: ${loaded} chamada(s) adicionais.`);
+  }
+
   async function tryLoadDlcPacks() {
     try {
       const res = await fetch("./dlc/manifest.json", { cache: "no-store" });
@@ -2707,6 +2731,7 @@ if (def.hint) convo += `[Dica] ${def.hint}\n`;
 
     spawnCall();
     spawnCall();
+    if (state.queue.length === 0) spawnEmergencyFallbackCall();
 if (state.queue.length === 0) {
   log("⚠️ Nenhuma chamada entrou na fila. Isso geralmente significa CALLS vazio ou filtro muito restrito.");
   log("🔧 Verifique no console se data/calls.js carregou e se a agência selecionada tem ocorrências.");
@@ -2759,6 +2784,16 @@ if (state.queue.length === 0) {
     renderAll();
   }
 
+  function spawnEmergencyFallbackCall() {
+    const defs = getEligibleCalls();
+    if (!defs.length) return;
+    const def = defs[Math.floor(Math.random() * defs.length)];
+    const call = buildCallFromDef(def);
+    if (!call) return;
+    state.queue.push(call);
+    log(`📡 Fallback de fila acionado: ${call.def.title}`);
+  }
+
   function answerNext() {
     if (!state.shiftActive) {
       log("⚠️ Inicie o turno antes de atender chamadas.");
@@ -2767,6 +2802,9 @@ if (state.queue.length === 0) {
     if (state.activeCall) {
       log("⚠️ Já existe uma chamada ativa em atendimento.");
       return;
+    }
+    if (!state.queue.length) {
+      spawnEmergencyFallbackCall();
     }
     if (!state.queue.length) {
       log("⏳ Ainda não há chamada na fila. Aguarde a próxima entrada.");
@@ -3455,7 +3493,8 @@ function computeEtaForUnit(unit, call, severityNow) {
       projectStatusEl.innerHTML = `<b>Versão:</b> ${BUILD.version} • <b>Stage:</b> ${BUILD.stage}<br><b>Build:</b> ${BUILD.builtAt}<br><b>Conclusão estimada:</b> ${PROJECT.completion}%<br><b>Foco:</b> ${PROJECT.focus}`;
     }
 
-    // Stage 5: load optional DLC packs (non-blocking)
+    // Load optional content packs and DLC packs (non-blocking)
+    tryLoadContentPacks();
     tryLoadDlcPacks();
 
     // Stage 4: load saved profile (career + unlocks + last settings)

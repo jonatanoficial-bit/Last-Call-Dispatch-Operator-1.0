@@ -1,6 +1,5 @@
 Last Call Dispatch Operator
-Build: 2026-03-06 09:33:52 BRT
-Versão: 1.1.1
-Stage: 8B
-Conclusão: 56%
-Foco: Correção crítica do fluxo de atendimento e dos controles duplicados do turno
+Build: 1.2.1
+Phase: Phase 3.5 - Stability and Content Upgrade
+Date and time: 2026-03-06 10:05:00 UTC
+Project completion: 64%
