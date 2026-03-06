@@ -8,19 +8,19 @@
 (function () {
   "use strict";
 
-const BUILD_TAG = "Stage 9 • Build 2026-03-06 19:52:00 UTC (phase3-dispatch-transcript-fix)";
+const BUILD_TAG = "Stage 9 • Build 2026-03-06 20:05:00 UTC (phase3-dispatch-transcript-fix-2)";
 
   // ----------------------------
   // Build info (always visible)
   // ----------------------------
   const BUILD = {
-    version: "1.2.2",
+    version: "1.2.3",
     stage: "9",
-    builtAt: "2026-03-06 19:52:00 UTC",
-    tag: "phase3-dispatch-transcript-fix",
+    builtAt: "2026-03-06 20:05:00 UTC",
+    tag: "phase3-dispatch-transcript-fix-2",
   };
   const PROJECT = {
-    completion: 66,
+    completion: 67,
     roadmapStages: 8,
     focus: "Estabilidade do atendimento, expansão de conteúdo Phase 3 e preparo da base para roadmap comercial",
   };
@@ -2157,7 +2157,7 @@ function getProtocolDef(callDef) {
     c.callTTL = Math.max(0, c.callTTL - 6);
     appendTranscript(c, [`⚠️ [Sistema] Ocorrência agravou (${reason || "tempo"}). Gravidade agora: ${humanSeverity(c.severity)}.`, ""]);
     log(`⚠️ OCORRÊNCIA AGRAVOU (${reason || "tempo"}). Gravidade agora: ${humanSeverity(c.severity)}.`);
-    renderActiveCall(true);
+    renderActiveCall(false);
   }
 
   function failActiveCall(reason) {
@@ -2553,9 +2553,11 @@ if (def.hint && !c.hintInjected) {
     } else if (!force && sameCall && state.ui.lastTranscript && convo.startsWith(state.ui.lastTranscript)) {
       // ✅ Não reescreve o "190/193..." toda hora.
       // Em vez disso, finaliza o que estiver animando e digita apenas o trecho novo.
+      const previous = state.ui.lastTranscript || "";
+      const delta = convo.slice(previous.length);
       skipTypewriter(el.callText);
       state.ui.lastTranscript = convo;
-      typewriterAppend(el.callText, convo, twOpts);
+      if (delta) typewriterAppend(el.callText, delta, twOpts);
     } else {
       state.ui.lastCallUid = c.uid;
       state.ui.lastTranscript = convo;
@@ -2870,7 +2872,7 @@ if (state.queue.length === 0) {
 
     renderUnits();
     renderDynamicQuestions();
-    renderActiveCall(true);
+    renderActiveCall(false);
     renderAll();
   }
 
@@ -3303,11 +3305,11 @@ function computeEtaForUnit(unit, call, severityNow) {
   function renderAll() {
     updateHud();
     updatePills();
-    setButtons();
     renderQueue();
     renderIncidents();
     renderDispatchSelectedList();
     renderUnits();
+    setButtons();
     renderActiveCall(false);
     renderDynamicQuestions();
     renderSummary();
