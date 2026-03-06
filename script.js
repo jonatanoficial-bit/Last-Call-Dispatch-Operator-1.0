@@ -8,18 +8,23 @@
 (function () {
   "use strict";
 
-const BUILD_TAG = "Stage 7C • Build 2026-02-25 19:47:04 (7C-fixNavOverlay-final)";
+const BUILD_TAG = "Stage 8A • Build 2026-03-06 09:26:38 BRT (stability-br-us-ems)";
 
   // ----------------------------
   // Build info (always visible)
   // ----------------------------
   const BUILD = {
-    version: "1.0",
-    stage: "7C",
-    builtAt: "2026-02-18 12:53:31",
-    tag: "7C-fixScreens-loadorder",
+    version: "1.1.0",
+    stage: "8A",
+    builtAt: "2026-03-06 09:26:38 BRT",
+    tag: "stability-br-us-ems",
   };
-  const BUILD_TEXT = `Last Call Dispatch Operator ${BUILD.version} • Stage ${BUILD.stage} • Build ${BUILD.builtAt} (${BUILD.tag})`;
+  const PROJECT = {
+    completion: 54,
+    roadmapStages: 8,
+    focus: "Estabilidade, BR/EUA e agência médica separada",
+  };
+  const BUILD_TEXT = `Last Call Dispatch Operator ${BUILD.version} • Stage ${BUILD.stage} • Build ${BUILD.builtAt} • Conclusão ${PROJECT.completion}%`; 
 
   // ----------------------------
   // Helpers
@@ -44,6 +49,39 @@ const BUILD_TAG = "Stage 7C • Build 2026-02-25 19:47:04 (7C-fixNavOverlay-fina
   function safeRandom(arr) {
     if (!arr || !arr.length) return null;
     return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+
+  function agencyMeta(agency) {
+    const a = String(agency || "police").toLowerCase();
+    if (a === "fire") return { key: "fire", label: "Bombeiros", icon: "🚒" };
+    if (a === "ambulance") return { key: "ambulance", label: "Ambulância / SAMU / EMS", icon: "🚑" };
+    return { key: "police", label: "Polícia", icon: "🚓" };
+  }
+
+  function cityCountryById(cityId) {
+    const c = getCities().find((x) => x.id === cityId);
+    const cc = String(c && c.country ? c.country : "BR").toUpperCase();
+    if (cc === "UK") return "EU";
+    return cc;
+  }
+
+  function resolveRegion(region) {
+    const raw = String(region || "").toUpperCase();
+    const cityCountry = cityCountryById(state.cityId);
+    if (!raw || raw.includes("/")) {
+      if (cityCountry === "JP") return "AS";
+      if (cityCountry === "AU") return "OC";
+      if (cityCountry === "ZA") return "AF";
+      if (cityCountry === "EU" || cityCountry === "UK") return "EU";
+      if (cityCountry === "US") return "US";
+      return "BR";
+    }
+    if (raw === "JP") return "AS";
+    if (raw === "AU") return "OC";
+    if (raw === "ZA") return "AF";
+    if (raw === "UK") return "EU";
+    return raw;
   }
 
   // ----------------------------
@@ -120,22 +158,19 @@ const BUILD_TAG = "Stage 7C • Build 2026-02-25 19:47:04 (7C-fixNavOverlay-fina
   function ensureMap() {
     const mapEl = document.getElementById("map");
     if (!mapEl) return;
-    // If Leaflet isn't available (CDN blocked/offline), show a clear fallback
-    // message instead of a blank card.
     if (!window.L) {
       if (!mapEl.dataset.fallbackShown) {
         mapEl.dataset.fallbackShown = "1";
         mapEl.innerHTML = `
           <div class="mapFallback">
             <div class="mfTitle">Mapa indisponível</div>
-            <div class="mfText">O mapa usa um componente online (Leaflet/OpenStreetMap). Se a rede/CDN estiver bloqueada, o jogo continua funcionando normalmente.</div>
+            <div class="mfText">O mapa usa um componente online (Leaflet/OpenStreetMap). Se a rede ou CDN estiver indisponível, o jogo continua funcionando normalmente.</div>
           </div>
         `;
       }
       return;
     }
 
-    // If Leaflet is available after a fallback, clear the placeholder.
     if (mapEl.dataset.fallbackShown) {
       delete mapEl.dataset.fallbackShown;
       mapEl.innerHTML = "";
@@ -143,7 +178,6 @@ const BUILD_TAG = "Stage 7C • Build 2026-02-25 19:47:04 (7C-fixNavOverlay-fina
 
     const center = getCityCenter(state.cityId);
 
-    // Force local Leaflet marker icons to avoid CDN marker image warnings / 404s
     try {
       if (window.L && L.Icon && L.Icon.Default) {
         L.Icon.Default.mergeOptions({
@@ -153,7 +187,6 @@ const BUILD_TAG = "Stage 7C • Build 2026-02-25 19:47:04 (7C-fixNavOverlay-fina
         });
       }
     } catch (e) { /* ignore */ }
-
 
     if (!MAP.map) {
       MAP.map = L.map(mapEl, {
@@ -169,7 +202,6 @@ const BUILD_TAG = "Stage 7C • Build 2026-02-25 19:47:04 (7C-fixNavOverlay-fina
     if (MAP.lastCityId !== state.cityId) {
       MAP.lastCityId = state.cityId;
       MAP.map.setView([center.lat, center.lng], 12);
-      // Clear markers when switching city
       if (MAP.incidentMarker) {
         MAP.map.removeLayer(MAP.incidentMarker);
         MAP.incidentMarker = null;
@@ -177,13 +209,9 @@ const BUILD_TAG = "Stage 7C • Build 2026-02-25 19:47:04 (7C-fixNavOverlay-fina
       for (const m of MAP.unitMarkers.values()) MAP.map.removeLayer(m);
       MAP.unitMarkers.clear();
     }
-      refreshMapSize();
-    }
-    // Keep size correct even when no city switch happened
+
     refreshMapSize();
   }
-
-  
 
   // Leaflet sometimes initializes while the container is still settling (screen switch,
   // fonts loading, scrollbars). This helper aggressively refreshes the map size a few
@@ -226,7 +254,7 @@ function setIncidentOnMap(call) {
       if (!u.pos) continue;
       const key = u.id;
       let m = MAP.unitMarkers.get(key);
-      const emoji = state.agency === "fire" ? "🚒" : "🚓";
+      const emoji = agencyMeta(state.agency).icon;
       const label = `${emoji} ${u.name} (${u.status || "available"})`;
       if (!m) {
         m = L.marker([u.pos.lat, u.pos.lng]).addTo(MAP.map);
@@ -526,11 +554,11 @@ function setIncidentOnMap(call) {
   const STORAGE_KEY = "lcdo_profile_v1";
 
   const UNLOCKS_BY_RANK = {
-    // These IDs must match data/cities.js
+    // Base game focado em Brasil + EUA. Outras regiões ficam para DLCs futuras.
     Recruta: ["br_sp"],
     Operador: ["br_df"],
-    "Sênior": ["eu_ldn"],
-    Supervisor: ["us_nyc"],
+    "Sênior": ["us_nyc"],
+    Supervisor: ["br_rj", "us_la"],
   };
 
   // Stage 5: unit roles unlocked by progression. These roles must match the
@@ -1308,7 +1336,7 @@ function selfCheck() {
   function refreshLobbySummary() {
     if (!el.lobbySummary) return;
     const city = cityNameById(state.cityId);
-    const agency = state.agency === "fire" ? "Bombeiros" : "Polícia";
+    const agency = agencyMeta(state.agency).label;
     const diff = state.difficulty === "easy" ? "Fácil" : state.difficulty === "hard" ? "Difícil" : "Normal";
     el.lobbySummary.innerHTML = `<b>${agency}</b> • ${city} • Dificuldade: ${diff}`;
     if (el.shiftSummaryTop) el.shiftSummaryTop.innerHTML = el.lobbySummary.innerHTML;
@@ -1518,71 +1546,118 @@ function selfCheck() {
   // Abertura por região
   // ----------------------------
   function lineByRegion(region, agency) {
-    const r = (region || "BR").toUpperCase();
-    if (r === "BR") return agency === "fire" ? "193" : "190";
+    const r = resolveRegion(region);
+    const a = String(agency || "police").toLowerCase();
+    if (r === "BR") return a === "fire" ? "193" : a === "ambulance" ? "192" : "190";
     if (r === "US") return "911";
     if (r === "EU") return "112";
     if (r === "OC") return "000";
-    if (r === "AS") return agency === "fire" ? "119" : "110";
-    if (r === "AF") return agency === "fire" ? "10177/112" : "10111/112";
+    if (r === "AS") return a === "fire" || a === "ambulance" ? "119" : "110";
+    if (r === "AF") return a === "fire" || a === "ambulance" ? "10177/112" : "10111/112";
     return "Emergência";
   }
 
   function defaultOpener(region, agency) {
-    const r = (region || "BR").toUpperCase();
-    if (r === "BR") return agency === "fire" ? "193, Bombeiros. Qual sua emergência?" : "190, Polícia Militar. Qual sua emergência?";
-    if (r === "US") return "911, what's your emergency?";
-    if (r === "EU") return "112, emergência. Qual a sua localização e situação?";
+    const r = resolveRegion(region);
+    const a = String(agency || "police").toLowerCase();
+    if (r === "BR") {
+      if (a === "fire") return "193, Bombeiros. Qual sua emergência?";
+      if (a === "ambulance") return "192, SAMU. Qual é a emergência médica?";
+      return "190, Polícia Militar. Qual sua emergência?";
+    }
+    if (r === "US") {
+      if (a === "fire") return "911, fire department. What is the location of the emergency?";
+      if (a === "ambulance") return "911, EMS. Tell me the exact location of the patient.";
+      return "911, what's your emergency?";
+    }
+    if (r === "EU") return a === "ambulance" ? "112, ambulance service. What is the location and condition of the patient?" : "112, emergência. Qual a sua localização e situação?";
     if (r === "OC") return "000, do you need Police, Fire or Ambulance?";
-    if (r === "AS") return agency === "fire" ? "119, Fire/Rescue. What's the emergency?" : "110, Police. What's your emergency?";
-    return "Central de emergência. Qual a sua ocorrência?";
+    if (r === "AS") return a === "police" ? "110, Police. What's your emergency?" : "119, Fire/Ambulance. What's the emergency?";
+    return "Central de emergência. Qual é a ocorrência?";
   }
 
   // ----------------------------
   // Unidades
   // ----------------------------
   function getUnitsFor(cityId, agency) {
-    if (agency === "police") {
-      if (String(cityId).includes("sp")) {
+    const country = cityCountryById(cityId);
+    const a = String(agency || "police").toLowerCase();
+
+    if (a === "police") {
+      if (country === "BR") {
         return [
           { id: "u_area_1", name: "PM Área (VTR)", role: "area_patrol", status: "available" },
-          { id: "u_rota_1", name: "ROTA", role: "tactical_rota", status: "available" },
+          { id: "u_rota_1", name: "ROTA / Força Tática", role: "tactical_rota", status: "available" },
           { id: "u_choque_1", name: "Choque", role: "shock_riot", status: "available" },
           { id: "u_gate_1", name: "GATE (Antibomba)", role: "bomb_gate", status: "available" },
-          { id: "u_aaguia_1", name: "Águia (Helicóptero)", role: "air_eagle", status: "available" },
+          { id: "u_aguia_1", name: "Águia (Helicóptero)", role: "air_eagle", status: "available" },
           { id: "u_pc_1", name: "Polícia Civil (Investigação)", role: "civil_investigation", status: "available" },
         ];
       }
-      if (String(cityId).includes("ny")) {
+      if (country === "US") {
         return [
           { id: "u_patrol_1", name: "Area Patrol", role: "area_patrol", status: "available" },
           { id: "u_swat_1", name: "SWAT", role: "tactical_rota", status: "available" },
-          { id: "u_federal_1", name: "Federal Unit", role: "civil_investigation", status: "available" },
+          { id: "u_detective_1", name: "Detective Unit", role: "civil_investigation", status: "available" },
           { id: "u_bomb_1", name: "Bomb Squad", role: "bomb_gate", status: "available" },
           { id: "u_air_1", name: "Air Support", role: "air_eagle", status: "available" },
         ];
       }
       return [
-        { id: "u_patrol_1", name: "Polícia de Área", role: "area_patrol", status: "available" },
-        { id: "u_tac_1", name: "Unidade Tática", role: "tactical_rota", status: "available" },
-        { id: "u_invest_1", name: "Investigação", role: "civil_investigation", status: "available" },
+        { id: "u_patrol_1", name: "Patrol Unit", role: "area_patrol", status: "available" },
+        { id: "u_tac_1", name: "Tactical Unit", role: "tactical_rota", status: "available" },
+        { id: "u_invest_1", name: "Investigation", role: "civil_investigation", status: "available" },
       ];
-    } else {
-      if (String(cityId).includes("sp")) {
+    }
+
+    if (a === "ambulance") {
+      if (country === "BR") {
         return [
-          { id: "f_engine_1", name: "Auto Bomba (AB)", role: "fire_engine", status: "available" },
-          { id: "f_rescue_1", name: "Resgate (UR)", role: "fire_rescue", status: "available" },
-          { id: "f_medic_1", name: "Ambulância (USA)", role: "medic_ambulance", status: "available" },
-          { id: "f_haz_1", name: "HazMat", role: "hazmat", status: "available" },
-          { id: "f_ladder_1", name: "Auto Escada", role: "ladder_truck", status: "available" },
+          { id: "m_usb_1", name: "USB (Suporte Básico)", role: "medic_ambulance", status: "available" },
+          { id: "m_usa_1", name: "USA (Suporte Avançado)", role: "medic_ambulance", status: "available" },
+          { id: "m_moto_1", name: "Motolância", role: "fire_rescue", status: "available" },
+          { id: "m_air_1", name: "Aeromédico", role: "air_eagle", status: "available" },
+        ];
+      }
+      if (country === "US") {
+        return [
+          { id: "m_amb_1", name: "BLS Ambulance", role: "medic_ambulance", status: "available" },
+          { id: "m_als_1", name: "ALS Paramedic Unit", role: "medic_ambulance", status: "available" },
+          { id: "m_rescue_1", name: "Rescue Medic", role: "fire_rescue", status: "available" },
+          { id: "m_air_1", name: "Air Ambulance", role: "air_eagle", status: "available" },
         ];
       }
       return [
-        { id: "f_engine_1", name: "Fire Engine", role: "fire_engine", status: "available" },
-        { id: "f_rescue_1", name: "Rescue", role: "fire_rescue", status: "available" },
-        { id: "f_medic_1", name: "Ambulance", role: "medic_ambulance", status: "available" },
+        { id: "m_amb_1", name: "Ambulance", role: "medic_ambulance", status: "available" },
+        { id: "m_rescue_1", name: "Rescue Medic", role: "fire_rescue", status: "available" },
       ];
     }
+
+    if (country === "BR") {
+      return [
+        { id: "f_engine_1", name: "Auto Bomba (AB)", role: "fire_engine", status: "available" },
+        { id: "f_ladder_1", name: "Auto Escada", role: "ladder_truck", status: "available" },
+        { id: "f_rescue_1", name: "Resgate (UR)", role: "fire_rescue", status: "available" },
+        { id: "f_haz_1", name: "Produtos Perigosos", role: "hazmat", status: "available" },
+        { id: "f_medic_1", name: "Ambulância de Apoio", role: "medic_ambulance", status: "available" },
+      ];
+    }
+
+    if (country === "US") {
+      return [
+        { id: "f_engine_1", name: "Engine", role: "fire_engine", status: "available" },
+        { id: "f_ladder_1", name: "Ladder", role: "ladder_truck", status: "available" },
+        { id: "f_rescue_1", name: "Rescue", role: "fire_rescue", status: "available" },
+        { id: "f_haz_1", name: "HazMat", role: "hazmat", status: "available" },
+        { id: "f_medic_1", name: "EMS Support", role: "medic_ambulance", status: "available" },
+      ];
+    }
+
+    return [
+      { id: "f_engine_1", name: "Fire Engine", role: "fire_engine", status: "available" },
+      { id: "f_rescue_1", name: "Rescue", role: "fire_rescue", status: "available" },
+      { id: "f_medic_1", name: "Ambulance", role: "medic_ambulance", status: "available" },
+    ];
   }
 
   function renderUnits() {
@@ -2504,8 +2579,13 @@ if (def.hint) convo += `[Dica] ${def.hint}\n`;
       { id: "fire_gas", name: "🧯 Vazamento de gás em massa", spawnMult: 0.78, stressBoost: 0.09 },
       { id: "fire_mci", name: "🚑 Múltiplas vítimas", spawnMult: 0.75, stressBoost: 0.10 },
     ];
+    const medicalPool = [
+      { id: "med_mci", name: "🚑 Evento com múltiplas vítimas", spawnMult: 0.78, stressBoost: 0.09 },
+      { id: "med_cardiac", name: "❤️ Parada cardiorrespiratória em série", spawnMult: 0.82, stressBoost: 0.10 },
+      { id: "med_crash", name: "🛵 Colisão grave com vítimas", spawnMult: 0.80, stressBoost: 0.08 },
+    ];
 
-    const pool = state.agency === "fire" ? firePool : policePool;
+    const pool = state.agency === "fire" ? firePool : state.agency === "ambulance" ? medicalPool : policePool;
     return pool[Math.floor(Math.random() * pool.length)];
   }
 
@@ -3228,7 +3308,7 @@ function computeEtaForUnit(unit, call, severityNow) {
         const p = defaultProfile();
         state.career = p.career;
         state.progress = p.progress;
-        state.agency = p.settings.agency;
+        state.agency = ["police", "fire", "ambulance"].includes(p.settings.agency) ? p.settings.agency : "police";
         state.difficulty = p.settings.difficulty;
         state.cityId = p.settings.cityId;
         if (el.agencySelect) el.agencySelect.value = state.agency;
@@ -3357,6 +3437,10 @@ function computeEtaForUnit(unit, call, severityNow) {
     // Show build info in header (helps verify updates on GitHub Pages/Vercel)
     const buildEl = document.getElementById("buildInfo");
     if (buildEl) buildEl.textContent = BUILD_TEXT;
+    const projectStatusEl = document.getElementById("projectStatus");
+    if (projectStatusEl) {
+      projectStatusEl.innerHTML = `<b>Versão:</b> ${BUILD.version} • <b>Stage:</b> ${BUILD.stage}<br><b>Build:</b> ${BUILD.builtAt}<br><b>Conclusão estimada:</b> ${PROJECT.completion}%<br><b>Foco:</b> ${PROJECT.focus}`;
+    }
 
     // Stage 5: load optional DLC packs (non-blocking)
     tryLoadDlcPacks();
@@ -3370,7 +3454,7 @@ function computeEtaForUnit(unit, call, severityNow) {
     state.upgrades = p.upgrades || defaultProfile().upgrades;
     if (!Array.isArray(state.upgrades.owned)) state.upgrades.owned = [];
     if (typeof state.upgrades.spent !== "number") state.upgrades.spent = 0;
-    state.agency = p.settings.agency;
+    state.agency = ["police", "fire", "ambulance"].includes(p.settings.agency) ? p.settings.agency : "police";
     state.difficulty = p.settings.difficulty;
     state.cityId = p.settings.cityId;
 

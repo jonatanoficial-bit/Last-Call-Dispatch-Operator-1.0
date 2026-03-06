@@ -1992,3 +1992,413 @@ window.CALLS = [
     "hint": "Priorize proteção. Pergunte feridos e presença de armas. Despache patrulha imediatamente."
   }
 ];
+
+window.CALLS.push(
+  {
+    "id": "med_chest_pain_01",
+    "agency": "ambulance",
+    "region": "BR/US",
+    "title": "Dor no peito / possível infarto",
+    "baseSeverity": "grave",
+    "timers": {
+      "worsen": 35,
+      "fail": 80
+    },
+    "openingText": "Meu pai está com uma dor forte no peito e está ficando pálido!",
+    "outcomes": {
+      "success": "Paciente estabilizado a tempo.",
+      "worsen": "O paciente piorou e perdeu a consciência.",
+      "fail": "Parada cardiorrespiratória sem atendimento rápido."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "age",
+        "conscious"
+      ],
+      "questions": [
+        {
+          "id": "location",
+          "label": "Endereço",
+          "prompt": "Qual o endereço completo?",
+          "answer": "Rua principal, número 245.",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "age",
+          "label": "Idade",
+          "prompt": "Qual a idade aproximada do paciente?",
+          "answer": "Sessenta e poucos anos.",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "conscious",
+          "label": "Está consciente?",
+          "prompt": "Ele está consciente e respirando?",
+          "answer": "Está consciente, mas muito mal.",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "history",
+          "label": "Histórico",
+          "prompt": "Tem problema cardíaco conhecido?",
+          "answer": "Sim, já teve problema antes.",
+          "effect": {
+            "severity": "critico"
+          }
+        }
+      ]
+    },
+    "dispatch": {
+      "correctRoles": [
+        "medic_ambulance"
+      ]
+    },
+    "hint": "Coletar endereço e condição do paciente. Despachar unidade médica imediatamente."
+  },
+  {
+    "id": "med_cardiac_arrest_02",
+    "agency": "ambulance",
+    "region": "BR/US",
+    "title": "Parada cardiorrespiratória",
+    "baseSeverity": "critico",
+    "timers": {
+      "worsen": 18,
+      "fail": 45
+    },
+    "openingText": "Ele caiu no chão e não está respirando!",
+    "outcomes": {
+      "success": "RCP iniciada e suporte avançado chegou a tempo.",
+      "worsen": "Sem compressões eficazes, a chance de sobrevivência caiu.",
+      "fail": "Óbito antes da chegada do suporte."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "breathing"
+      ],
+      "questions": [
+        {
+          "id": "location",
+          "label": "Endereço",
+          "prompt": "Qual o endereço exato agora?",
+          "answer": "Avenida central, em frente à padaria.",
+          "effect": {
+            "severity": "critico"
+          }
+        },
+        {
+          "id": "breathing",
+          "label": "Respira?",
+          "prompt": "Ele está respirando?",
+          "answer": "Não, não está respirando!",
+          "effect": {
+            "severity": "critico"
+          }
+        },
+        {
+          "id": "compressions",
+          "label": "RCP",
+          "prompt": "Alguém consegue iniciar compressões?",
+          "answer": "Sim, eu vou tentar!",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "aed",
+          "label": "DEA",
+          "prompt": "Há um desfibrilador por perto?",
+          "answer": "Tem um no shopping ao lado.",
+          "effect": {
+            "severity": "grave"
+          }
+        }
+      ]
+    },
+    "dispatch": {
+      "correctRoles": [
+        "medic_ambulance",
+        "air_eagle"
+      ]
+    },
+    "hint": "Despacho crítico. Oriente RCP e envie suporte avançado sem demora."
+  },
+  {
+    "id": "med_traffic_crash_03",
+    "agency": "ambulance",
+    "region": "BR/US",
+    "title": "Colisão de trânsito com feridos",
+    "baseSeverity": "grave",
+    "timers": {
+      "worsen": 28,
+      "fail": 70
+    },
+    "openingText": "Teve uma batida forte de moto e carro, tem gente caída!",
+    "outcomes": {
+      "success": "Vítimas removidas e estabilizadas.",
+      "worsen": "Uma das vítimas entrou em choque.",
+      "fail": "Deterioração grave das vítimas antes do atendimento."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "victims"
+      ],
+      "questions": [
+        {
+          "id": "location",
+          "label": "Local",
+          "prompt": "Em qual via e referência?",
+          "answer": "Na avenida do terminal, perto do posto.",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "victims",
+          "label": "Vítimas",
+          "prompt": "Quantas vítimas você vê?",
+          "answer": "Duas pessoas, uma está desacordada.",
+          "effect": {
+            "severity": "critico"
+          }
+        },
+        {
+          "id": "trapped",
+          "label": "Presos nas ferragens",
+          "prompt": "Alguém está preso?",
+          "answer": "Não, mas uma vítima não se mexe.",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "bleeding",
+          "label": "Sangramento",
+          "prompt": "Há muito sangramento?",
+          "answer": "Sim, bastante.",
+          "effect": {
+            "severity": "critico"
+          }
+        }
+      ]
+    },
+    "dispatch": {
+      "correctRoles": [
+        "medic_ambulance",
+        "fire_rescue"
+      ]
+    },
+    "hint": "Acione ambulância e apoio de resgate quando houver trauma e múltiplas vítimas."
+  },
+  {
+    "id": "med_stroke_04",
+    "agency": "ambulance",
+    "region": "BR/US",
+    "title": "AVC / possível derrame",
+    "baseSeverity": "grave",
+    "timers": {
+      "worsen": 30,
+      "fail": 75
+    },
+    "openingText": "Minha mãe ficou com a boca torta e não consegue falar direito!",
+    "outcomes": {
+      "success": "Paciente encaminhada dentro da janela terapêutica.",
+      "worsen": "Déficit neurológico se agravou.",
+      "fail": "Atraso crítico com sequelas graves."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "onset"
+      ],
+      "questions": [
+        {
+          "id": "location",
+          "label": "Endereço",
+          "prompt": "Qual o endereço?",
+          "answer": "Rua das Flores, casa 18.",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "onset",
+          "label": "Início",
+          "prompt": "Há quanto tempo começou?",
+          "answer": "Tem uns 10 minutos.",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "face",
+          "label": "Face",
+          "prompt": "O rosto está caído de um lado?",
+          "answer": "Sim, do lado esquerdo.",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "speech",
+          "label": "Fala",
+          "prompt": "Ela está com dificuldade para falar?",
+          "answer": "Sim, fala enrolado.",
+          "effect": {
+            "severity": "grave"
+          }
+        }
+      ]
+    },
+    "dispatch": {
+      "correctRoles": [
+        "medic_ambulance"
+      ]
+    },
+    "hint": "Ocorrência tempo-dependente. Despache ambulância imediatamente."
+  },
+  {
+    "id": "med_overdose_05",
+    "agency": "ambulance",
+    "region": "BR/US",
+    "title": "Suspeita de overdose",
+    "baseSeverity": "critico",
+    "timers": {
+      "worsen": 22,
+      "fail": 55
+    },
+    "openingText": "Meu amigo não acorda e está respirando muito fraco!",
+    "outcomes": {
+      "success": "Paciente ventilado e revertido a tempo.",
+      "worsen": "Respiração ficou agônica e superficial.",
+      "fail": "Parada respiratória antes da chegada da equipe."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "breathing"
+      ],
+      "questions": [
+        {
+          "id": "location",
+          "label": "Endereço",
+          "prompt": "Qual o local exato?",
+          "answer": "Apartamento 72 do bloco C.",
+          "effect": {
+            "severity": "critico"
+          }
+        },
+        {
+          "id": "breathing",
+          "label": "Respiração",
+          "prompt": "Ele está respirando?",
+          "answer": "Bem fraco, quase nada.",
+          "effect": {
+            "severity": "critico"
+          }
+        },
+        {
+          "id": "substance",
+          "label": "Substância",
+          "prompt": "Sabe o que ele usou?",
+          "answer": "Acho que opioide, não tenho certeza.",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "naloxone",
+          "label": "Naloxona",
+          "prompt": "Há naloxona no local?",
+          "answer": "Não sei, acho que não.",
+          "effect": {
+            "severity": "grave"
+          }
+        }
+      ]
+    },
+    "dispatch": {
+      "correctRoles": [
+        "medic_ambulance",
+        "air_eagle"
+      ]
+    },
+    "hint": "Prioridade máxima. Confirme respiração e despache suporte avançado."
+  },
+  {
+    "id": "med_obstetric_06",
+    "agency": "ambulance",
+    "region": "BR/US",
+    "title": "Parto iminente / emergência obstétrica",
+    "baseSeverity": "grave",
+    "timers": {
+      "worsen": 26,
+      "fail": 60
+    },
+    "openingText": "Minha esposa está com contrações muito fortes e o bebê está vindo!",
+    "outcomes": {
+      "success": "Parto assistido e mãe estável.",
+      "worsen": "Sinais de sofrimento materno e neonatal.",
+      "fail": "Complicação obstétrica grave sem suporte."
+    },
+    "protocol": {
+      "required": [
+        "location",
+        "gestation"
+      ],
+      "questions": [
+        {
+          "id": "location",
+          "label": "Endereço",
+          "prompt": "Qual o endereço e andar?",
+          "answer": "Rua do hospital, bloco 2.",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "gestation",
+          "label": "Gestação",
+          "prompt": "Ela está no fim da gestação?",
+          "answer": "Sim, 39 semanas.",
+          "effect": {
+            "severity": "grave"
+          }
+        },
+        {
+          "id": "crowning",
+          "label": "Coroamento",
+          "prompt": "Você consegue ver o bebê?",
+          "answer": "Acho que sim!",
+          "effect": {
+            "severity": "critico"
+          }
+        },
+        {
+          "id": "bleeding",
+          "label": "Sangramento",
+          "prompt": "Há muito sangramento?",
+          "answer": "Pouco por enquanto.",
+          "effect": {
+            "severity": "grave"
+          }
+        }
+      ]
+    },
+    "dispatch": {
+      "correctRoles": [
+        "medic_ambulance"
+      ]
+    },
+    "hint": "Despache SAMU/EMS com prioridade e mantenha instruções pelo telefone."
+  }
+
+);

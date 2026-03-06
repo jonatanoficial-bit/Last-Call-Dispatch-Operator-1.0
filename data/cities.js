@@ -4,6 +4,7 @@ window.CITIES = [
   {
     id: "br_sp",
     name: "🇧🇷 São Paulo (Simulação)",
+    country: "BR",
     greetingPolice: "190, Polícia Militar. Qual sua emergência?",
     greetingFire: "193, Bombeiros. Qual sua emergência?",
     units: {
@@ -28,6 +29,7 @@ window.CITIES = [
   {
     id: "br_df",
     name: "🇧🇷 Brasília (DF)",
+    country: "BR",
     greetingPolice: "190, Polícia Militar do DF. Qual sua emergência?",
     greetingFire: "193, Corpo de Bombeiros do DF. Qual sua emergência?",
     units: {
@@ -47,6 +49,7 @@ window.CITIES = [
   {
     id: "us_nyc",
     name: "🇺🇸 New York (911)",
+    country: "US",
     greetingPolice: "911, what's your emergency?",
     greetingFire: "911, fire/EMS. What's the address of the emergency?",
     units: {
@@ -71,6 +74,7 @@ window.CITIES = [
   {
     id: "eu_ldn",
     name: "🇪🇺 London (112/999)",
+    country: "EU",
     greetingPolice: "999, police. What's your emergency?",
     greetingFire: "999, fire and rescue. What's the address?",
     units: {
@@ -90,6 +94,7 @@ window.CITIES = [
   {
     id: "jp_tokyo",
     name: "🇯🇵 Tokyo (110/119)",
+    country: "JP",
     greetingPolice: "110, police. What is your emergency?",
     greetingFire: "119, fire/ambulance. What is the address?",
     units: {
@@ -109,6 +114,7 @@ window.CITIES = [
   {
     id: "au_syd",
     name: "🇦🇺 Sydney (000)",
+    country: "AU",
     greetingPolice: "000, do you need Police, Fire or Ambulance?",
     greetingFire: "000, Fire and Rescue. What's the location?",
     units: {
@@ -127,6 +133,7 @@ window.CITIES = [
   {
     id: "za_jhb",
     name: "🇿🇦 Johannesburg (112/10111)",
+    country: "ZA",
     greetingPolice: "10111, police. What is your emergency?",
     greetingFire: "Emergency services. What is the location?",
     units: {
@@ -142,3 +149,22 @@ window.CITIES = [
     }
   }
 ];
+
+window.CITIES.push(
+  {
+    id: "br_rj",
+    name: "🇧🇷 Rio de Janeiro (190/192/193)",
+    country: "BR",
+    greetingPolice: "190, Polícia Militar. Qual sua emergência?",
+    greetingFire: "193, Bombeiros. Qual sua emergência?",
+    units: { police: [], fire: [] }
+  },
+  {
+    id: "us_la",
+    name: "🇺🇸 Los Angeles (911)",
+    country: "US",
+    greetingPolice: "911, what's your emergency?",
+    greetingFire: "911, fire/EMS. What's the address of the emergency?",
+    units: { police: [], fire: [] }
+  }
+);

@@ -1,0 +1,8 @@
+PROJECT: Last Call Dispatch Operator
+VERSION: 1.1.0
+STAGE: 8A
+BUILD_AT: 2026-03-06 09:26:38 BRT
+BUILD_TAG: stability-br-us-ems
+COMPLETION_PERCENT: 54
+ROADMAP_STAGES_TOTAL: 8
+FOCUS: Correção estrutural, BR/EUA e agência médica separada

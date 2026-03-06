@@ -462,14 +462,22 @@ body[data-agency="police"] {
 }
 
 body[data-agency="fire"] {
-  /* Warm orange/red palette for fire/ambulância mode */
+  /* Warm orange/red palette for fire mode */
   --bg-url: url('./img/fire_bg.png');
   --primary: rgba(245, 90, 75, 1);
   --primary2: rgba(245, 90, 75, 0.18);
 
-  /* Derived colours for shadows and borders in the fire/ambulância theme */
+  /* Derived colours for shadows and borders in the fire theme */
   --primary-shadow: rgba(245, 90, 75, 0.18);
   --primary-border: rgba(255, 140, 100, 0.35);
+}
+
+body[data-agency="ambulance"] {
+  --bg-url: url('./img/fire_bg.png');
+  --primary: rgba(50, 205, 190, 1);
+  --primary2: rgba(50, 205, 190, 0.18);
+  --primary-shadow: rgba(50, 205, 190, 0.20);
+  --primary-border: rgba(110, 235, 220, 0.35);
 }
 
 /* Desktop: 2 colunas */
