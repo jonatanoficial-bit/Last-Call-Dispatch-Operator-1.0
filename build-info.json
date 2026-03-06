@@ -1,13 +1,14 @@
 {
-  "game": "Last Call Dispatch Operator",
-  "version": "1.1.1",
-  "stage": "8B",
-  "built_at": "2026-03-06 09:33:52 BRT",
-  "completion_percent": 56,
-  "focus": "Correção crítica do fluxo de atendimento e dos controles duplicados do turno",
-  "notes": [
-    "btnStartShift2 ligado a startShift()",
-    "btnEndShift2 ligado a endShift()",
-    "Feedback adicional no botão de atender chamadas"
+  "project": "Last Call Dispatch Operator",
+  "build": "1.2.2",
+  "phase": "Phase 3.6 – Dispatch and Transcript Fix",
+  "built_at": "2026-03-06 19:52:00 UTC",
+  "completion_percent": 66,
+  "changes": [
+    "Corrigido desbloqueio visual do despacho após perguntas obrigatórias",
+    "Seleção automática da primeira unidade disponível ao liberar despacho",
+    "Botão Despachar reativado ao selecionar unidade",
+    "Transcript não repete mais a saudação do operador a cada pergunta",
+    "Painel de despacho agora mostra quais perguntas obrigatórias faltam"
   ]
 }

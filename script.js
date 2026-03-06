@@ -8,19 +8,19 @@
 (function () {
   "use strict";
 
-const BUILD_TAG = "Stage 9 • Build 2026-03-06 10:05:00 UTC (phase3-content-stability)";
+const BUILD_TAG = "Stage 9 • Build 2026-03-06 19:52:00 UTC (phase3-dispatch-transcript-fix)";
 
   // ----------------------------
   // Build info (always visible)
   // ----------------------------
   const BUILD = {
-    version: "1.2.1",
+    version: "1.2.2",
     stage: "9",
-    builtAt: "2026-03-06 10:05:00 UTC",
-    tag: "phase3-content-stability",
+    builtAt: "2026-03-06 19:52:00 UTC",
+    tag: "phase3-dispatch-transcript-fix",
   };
   const PROJECT = {
-    completion: 64,
+    completion: 66,
     roadmapStages: 8,
     focus: "Estabilidade do atendimento, expansão de conteúdo Phase 3 e preparo da base para roadmap comercial",
   };
@@ -1751,6 +1751,13 @@ function selfCheck() {
       if (prev && [...el.dispatchUnitSelect.options].some((o) => o.value === prev)) {
         el.dispatchUnitSelect.value = prev;
       }
+
+      // Quando o despacho é liberado, selecione automaticamente a primeira unidade disponível
+      // para evitar a sensação de que o painel segue "indisponível".
+      if ((!el.dispatchUnitSelect.value || el.dispatchUnitSelect.value === "") && state.activeCall && (state.activeCall.dispatchUnlocked || state.activeCall.isIncidentFocus)) {
+        const firstAvailable = [...el.dispatchUnitSelect.options].find((o) => !!o.value);
+        if (firstAvailable) el.dispatchUnitSelect.value = firstAvailable.value;
+      }
     }
 
     // Keep map markers in sync
@@ -2078,11 +2085,19 @@ function getProtocolDef(callDef) {
   }
 
   function updateDispatchUnlock() {
-    if (!state.activeCall) return;
+    if (!state.activeCall) return false;
     const protocol = getProtocolDef(state.activeCall.def);
     const required = Array.isArray(protocol.required) ? protocol.required : [];
-    const ok = required.every((qid) => !!state.activeCall.asked[qid]);
+    const missing = required.filter((qid) => !state.activeCall.asked[qid]);
+    const ok = missing.length === 0;
     state.activeCall.dispatchUnlocked = ok;
+
+    if (ok && !state.activeCall.dispatchAnnounced) {
+      state.activeCall.dispatchAnnounced = true;
+      log("✅ Despacho liberado: perguntas obrigatórias concluídas.");
+    }
+
+    return ok;
   }
 
   function applyQuestionEffect(effect) {
@@ -2214,7 +2229,7 @@ function getProtocolDef(callDef) {
     updateDispatchUnlock();
 
     renderDynamicQuestions();
-    renderActiveCall(true); // texto mudou -> atualiza (com typewriter humano)
+    renderActiveCall(false); // mantém a abertura original e só acrescenta o novo trecho
     renderAll();
   }
 
@@ -2346,10 +2361,16 @@ function getProtocolDef(callDef) {
   if (el.btnHold) el.btnHold.disabled = !(hasShift && hasActive && !state.activeCall.isIncidentFocus);
 
   const canDispatch = hasShift && hasActive && (state.activeCall.dispatchUnlocked || state.activeCall.isIncidentFocus);
-  if (el.dispatchUnitSelect) el.dispatchUnitSelect.disabled = !canDispatch;
+  if (el.dispatchUnitSelect) {
+    el.dispatchUnitSelect.disabled = !canDispatch;
+    if (canDispatch && !el.dispatchUnitSelect.value) {
+      const firstAvailable = [...el.dispatchUnitSelect.options].find((o) => !!o.value);
+      if (firstAvailable) el.dispatchUnitSelect.value = firstAvailable.value;
+    }
+  }
 
   const hasPending = Array.isArray(state.pendingDispatchUnitIds) && state.pendingDispatchUnitIds.length > 0;
-  const selected = el.dispatchUnitSelect ? !!el.dispatchUnitSelect.value : false;
+  const selected = !!(el.dispatchUnitSelect && el.dispatchUnitSelect.value);
 
   if (el.btnAddUnit) el.btnAddUnit.disabled = !(canDispatch && selected);
   if (el.btnDispatch) el.btnDispatch.disabled = !(canDispatch && (hasPending || selected));
@@ -2508,7 +2529,11 @@ function renderSummary() {
 ensureTranscriptInitialized(c);
 
 let convo = c.transcriptText || "";
-if (def.hint) convo += `[Dica] ${def.hint}\n`;
+if (def.hint && !c.hintInjected) {
+  appendTranscript(c, [`[Dica] ${def.hint}`, ""]);
+  c.hintInjected = true;
+  convo = c.transcriptText || "";
+}
 
     const sameCall = state.ui.lastCallUid === c.uid;
     const sameText = state.ui.lastTranscript === convo;
@@ -2538,9 +2563,16 @@ if (def.hint) convo += `[Dica] ${def.hint}\n`;
     }
 
     if (el.dispatchInfo) {
-      el.dispatchInfo.textContent = c.dispatchUnlocked
-        ? `Despacho liberado. Selecione a unidade e despache.`
-        : `Despacho bloqueado. Faça as perguntas obrigatórias primeiro.`;
+      if (c.dispatchUnlocked || c.isIncidentFocus) {
+        el.dispatchInfo.textContent = `Despacho liberado. Selecione a unidade e despache.`;
+      } else {
+        const protocol = getProtocolDef(c.def);
+        const required = Array.isArray(protocol.required) ? protocol.required : [];
+        const missing = required.filter((qid) => !c.asked[qid]);
+        el.dispatchInfo.textContent = missing.length
+          ? `Despacho bloqueado. Falta perguntar: ${missing.join(', ')}.`
+          : `Despacho bloqueado. Faça as perguntas obrigatórias primeiro.`;
+      }
     }
   }
 
@@ -3470,6 +3502,7 @@ function computeEtaForUnit(unit, call, severityNow) {
     if (el.btnAddUnit) el.btnAddUnit.addEventListener("click", addPendingDispatchUnit);
     if (el.btnDispatch) el.btnDispatch.addEventListener("click", dispatchSelectedUnit);
     if (el.btnDismiss) el.btnDismiss.addEventListener("click", dismissCall);
+    if (el.dispatchUnitSelect) el.dispatchUnitSelect.addEventListener("change", () => setButtons());
 
     // ✅ NOVO: tocar no texto da chamada "pula" o typewriter e mostra tudo
     if (el.callText) {

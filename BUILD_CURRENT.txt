@@ -1,5 +1,4 @@
-Last Call Dispatch Operator
-Build: 1.2.1
-Phase: Phase 3.5 - Stability and Content Upgrade
-Date and time: 2026-03-06 10:05:00 UTC
-Project completion: 64%
+Build: 1.2.2
+Fase: Phase 3.6 – Dispatch and Transcript Fix
+Data e hora: 2026-03-06 19:52:00 UTC
+Conclusão do projeto: 66%
