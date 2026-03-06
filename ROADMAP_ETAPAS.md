@@ -52,3 +52,8 @@ Levar o projeto a **65%** focando em:
 - refino de UX do despacho;
 - relatórios pós-incidente mais profundos;
 - tutorial introdutório.
+
+
+## Build 1.1.1 / Stage 8B
+- Correção crítica do fluxo de atendimento: botões duplicados de início/fim de turno agora acionam a lógica principal.
+- Estado pós-build: 56% concluído.

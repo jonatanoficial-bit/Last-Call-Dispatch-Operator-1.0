@@ -14,15 +14,15 @@ const BUILD_TAG = "Stage 8A • Build 2026-03-06 09:26:38 BRT (stability-br-us-e
   // Build info (always visible)
   // ----------------------------
   const BUILD = {
-    version: "1.1.0",
-    stage: "8A",
-    builtAt: "2026-03-06 09:26:38 BRT",
+    version: "1.1.1",
+    stage: "8B",
+    builtAt: "2026-03-06 09:33:52 BRT",
     tag: "stability-br-us-ems",
   };
   const PROJECT = {
-    completion: 54,
+    completion: 56,
     roadmapStages: 8,
-    focus: "Estabilidade, BR/EUA e agência médica separada",
+    focus: "Correção crítica do fluxo de atendimento e dos controles duplicados do turno",
   };
   const BUILD_TEXT = `Last Call Dispatch Operator ${BUILD.version} • Stage ${BUILD.stage} • Build ${BUILD.builtAt} • Conclusão ${PROJECT.completion}%`; 
 
@@ -2760,9 +2760,19 @@ if (state.queue.length === 0) {
   }
 
   function answerNext() {
-    if (!state.shiftActive) return;
-    if (state.activeCall) return;
-    if (!state.queue.length) return;
+    if (!state.shiftActive) {
+      log("⚠️ Inicie o turno antes de atender chamadas.");
+      return;
+    }
+    if (state.activeCall) {
+      log("⚠️ Já existe uma chamada ativa em atendimento.");
+      return;
+    }
+    if (!state.queue.length) {
+      log("⏳ Ainda não há chamada na fila. Aguarde a próxima entrada.");
+      renderAll();
+      return;
+    }
 
     state.activeCall = state.queue.shift();
     state.activeCall.isIncidentFocus = false;
@@ -3412,6 +3422,9 @@ function computeEtaForUnit(unit, call, severityNow) {
 
     if (el.btnStartShift) el.btnStartShift.addEventListener("click", startShift);
     if (el.btnEndShift) el.btnEndShift.addEventListener("click", endShift);
+    // Fix Stage 8B: secondary shift controls must mirror the primary controls
+    if (el.btnStartShift2) el.btnStartShift2.addEventListener("click", startShift);
+    if (el.btnEndShift2) el.btnEndShift2.addEventListener("click", endShift);
 
     if (el.btnAnswer) el.btnAnswer.addEventListener("click", answerNext);
     if (el.btnHold) el.btnHold.addEventListener("click", holdCall);
