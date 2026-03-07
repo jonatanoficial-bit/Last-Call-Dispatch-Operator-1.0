@@ -11,7 +11,7 @@
   <link rel="apple-touch-icon" href="./favicon.png" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <link id="appStyles" rel="stylesheet" href="styles.css?v=20260306-100500" />
+  <link id="appStyles" rel="stylesheet" href="styles.css?v=20260307-103000" />
   <style id="critical-screen-css">
     html, body { height: 100%; margin: 0; overflow: hidden !important; }
     .app { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
@@ -207,6 +207,15 @@
           <div class="map" id="map"></div>
         </section>
 
+
+
+        <section class="card">
+          <div class="cardTitle">Sistema de Resposta</div>
+          <div class="hint">Visão operacional do plantão com ETAs e unidades em movimento.</div>
+          <div class="responseGrid" id="responseOverview">—</div>
+          <div class="responseTimeline" id="responseTimeline">Nenhuma unidade em deslocamento.</div>
+        </section>
+
         <section class="card">
           <div class="cardTitle">Incidentes Ativos</div>
           <div class="hint">Gerencie prioridades. Clique em um incidente para focar e despachar reforço.</div>
@@ -231,8 +240,8 @@
     </main>
   </div>
 
-  <script src="./data/cities.js?v=20260306-093352"></script>
-  <script src="./data/calls.js?v=20260306-093352"></script>
-  <script defer src="./script.js?v=20260306-093352"></script>
+  <script src="./data/cities.js?v=20260307-103000"></script>
+  <script src="./data/calls.js?v=20260307-103000"></script>
+  <script defer src="./script.js?v=20260307-103000"></script>
 </body>
 </html>

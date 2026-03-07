@@ -1,13 +1,13 @@
 {
-  "project": "Last Call Dispatch Operator",
-  "build": "1.2.3",
-  "phase": "Phase 3.7 – Dispatch Enable and Append-Only Transcript Fix",
-  "built_at": "2026-03-06 20:05:00 UTC",
-  "completion_percent": 67,
-  "changes": [
-    "Corrigido append-only real do transcript: agora só acrescenta o trecho novo",
-    "Removido retype desnecessário ao atender e ao agravar chamada",
-    "Renderização reordenada para preencher unidades antes de recalcular estado dos botões",
-    "Botão Despachar passa a refletir corretamente a unidade auto-selecionada"
+  "game": "Last Call Dispatch Operator",
+  "version": "1.3.0",
+  "stage": "Phase 4",
+  "built_at": "2026-03-07 10:30:00 UTC",
+  "completion_percent": 74,
+  "focus": "mapa operacional, painel de resposta e rotas visuais de despacho",
+  "notes": [
+    "painel Sistema de Resposta com ETAs e disponibilidade",
+    "rotas visuais no mapa para unidades em deslocamento",
+    "cache-busting dos arquivos principais para GitHub Pages e Vercel"
   ]
 }

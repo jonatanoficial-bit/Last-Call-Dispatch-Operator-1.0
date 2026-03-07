@@ -8,21 +8,21 @@
 (function () {
   "use strict";
 
-const BUILD_TAG = "Stage 9 • Build 2026-03-06 20:05:00 UTC (phase3-dispatch-transcript-fix-2)";
+const BUILD_TAG = "Phase 4 • Build 2026-03-07 10:30:00 UTC (operational-map-response-system)";
 
   // ----------------------------
   // Build info (always visible)
   // ----------------------------
   const BUILD = {
-    version: "1.2.3",
-    stage: "9",
-    builtAt: "2026-03-06 20:05:00 UTC",
-    tag: "phase3-dispatch-transcript-fix-2",
+    version: "1.3.0",
+    stage: "Phase 4",
+    builtAt: "2026-03-07 10:30:00 UTC",
+    tag: "operational-map-response-system",
   };
   const PROJECT = {
-    completion: 67,
+    completion: 74,
     roadmapStages: 8,
-    focus: "Estabilidade do atendimento, expansão de conteúdo Phase 3 e preparo da base para roadmap comercial",
+    focus: "Mapa operacional, painel de resposta e rotas visuais de despacho",
   };
   const BUILD_TEXT = `Last Call Dispatch Operator ${BUILD.version} • Stage ${BUILD.stage} • Build ${BUILD.builtAt} • Conclusão ${PROJECT.completion}%`; 
 
@@ -152,6 +152,7 @@ const BUILD_TAG = "Stage 9 • Build 2026-03-06 20:05:00 UTC (phase3-dispatch-tr
     tiles: null,
     incidentMarker: null,
     unitMarkers: new Map(),
+    routeLines: new Map(),
     lastCityId: null,
   };
 
@@ -208,6 +209,8 @@ const BUILD_TAG = "Stage 9 • Build 2026-03-06 20:05:00 UTC (phase3-dispatch-tr
       }
       for (const m of MAP.unitMarkers.values()) MAP.map.removeLayer(m);
       MAP.unitMarkers.clear();
+      for (const line of MAP.routeLines.values()) MAP.map.removeLayer(line);
+      MAP.routeLines.clear();
     }
 
     refreshMapSize();
@@ -1137,30 +1140,6 @@ function selfCheck() {
   //   /dlc/manifest.json -> { "packs": [ { "id": "...", "path": "./dlc/packs/...json" } ] }
   // Each pack JSON can include: { "cities": [...], "calls": [...] }
   // ----------------------------
-  async function tryLoadContentPacks() {
-    const packPaths = [
-      "./data/calls/phase2_calls.json",
-      "./data/calls/phase3_calls.json",
-    ];
-    let loaded = 0;
-    for (const path of packPaths) {
-      try {
-        const res = await fetch(path, { cache: "no-store" });
-        if (!res.ok) continue;
-        const data = await res.json();
-        if (!data || !Array.isArray(data.calls) || !data.calls.length) continue;
-        const existingIds = new Set((Array.isArray(window.CALLS) ? window.CALLS : []).map((c) => c && c.id).filter(Boolean));
-        const freshCalls = data.calls.filter((c) => c && c.id && !existingIds.has(c.id));
-        if (!freshCalls.length) continue;
-        window.CALLS = Array.isArray(window.CALLS) ? [...window.CALLS, ...freshCalls] : [...freshCalls];
-        loaded += freshCalls.length;
-      } catch {
-        // optional content pack
-      }
-    }
-    if (loaded) log(`🧠 Conteúdo extra carregado: ${loaded} chamada(s) adicionais.`);
-  }
-
   async function tryLoadDlcPacks() {
     try {
       const res = await fetch("./dlc/manifest.json", { cache: "no-store" });
@@ -1751,17 +1730,11 @@ function selfCheck() {
       if (prev && [...el.dispatchUnitSelect.options].some((o) => o.value === prev)) {
         el.dispatchUnitSelect.value = prev;
       }
-
-      // Quando o despacho é liberado, selecione automaticamente a primeira unidade disponível
-      // para evitar a sensação de que o painel segue "indisponível".
-      if ((!el.dispatchUnitSelect.value || el.dispatchUnitSelect.value === "") && state.activeCall && (state.activeCall.dispatchUnlocked || state.activeCall.isIncidentFocus)) {
-        const firstAvailable = [...el.dispatchUnitSelect.options].find((o) => !!o.value);
-        if (firstAvailable) el.dispatchUnitSelect.value = firstAvailable.value;
-      }
     }
 
     // Keep map markers in sync
     upsertUnitMarkers();
+    syncRouteLines();
   }
 
   function updateUnitMovementTick() {
@@ -1802,6 +1775,43 @@ function selfCheck() {
   // ----------------------------
   // Cidades
   // ----------------------------
+
+  function syncRouteLines() {
+    ensureMap();
+    if (!MAP.map || !window.L) return;
+
+    const liveKeys = new Set();
+    for (const u of state.units || []) {
+      if (!u || !u.pos || !u.move || !u.move.target) continue;
+      const key = u.id;
+      liveKeys.add(key);
+      let line = MAP.routeLines.get(key);
+      const points = [[u.pos.lat, u.pos.lng], [u.move.target.lat, u.move.target.lng]];
+      if (!line) {
+        line = L.polyline(points, {
+          weight: 3,
+          opacity: 0.7,
+          color: u.status === "returning" ? "#93c5fd" : (u.status === "onscene" ? "#fbbf24" : "#60a5fa"),
+          dashArray: u.status === "onscene" ? "3 6" : "8 6",
+        }).addTo(MAP.map);
+        MAP.routeLines.set(key, line);
+      } else {
+        line.setLatLngs(points);
+        line.setStyle({
+          color: u.status === "returning" ? "#93c5fd" : (u.status === "onscene" ? "#fbbf24" : "#60a5fa"),
+          dashArray: u.status === "onscene" ? "3 6" : "8 6",
+        });
+      }
+    }
+
+    for (const [key, line] of MAP.routeLines.entries()) {
+      if (!liveKeys.has(key)) {
+        try { MAP.map.removeLayer(line); } catch (e) {}
+        MAP.routeLines.delete(key);
+      }
+    }
+  }
+
   function cityNameById(id) {
     const cities = getCities();
     const c = cities.find((x) => x.id === id);
@@ -2085,19 +2095,11 @@ function getProtocolDef(callDef) {
   }
 
   function updateDispatchUnlock() {
-    if (!state.activeCall) return false;
+    if (!state.activeCall) return;
     const protocol = getProtocolDef(state.activeCall.def);
     const required = Array.isArray(protocol.required) ? protocol.required : [];
-    const missing = required.filter((qid) => !state.activeCall.asked[qid]);
-    const ok = missing.length === 0;
+    const ok = required.every((qid) => !!state.activeCall.asked[qid]);
     state.activeCall.dispatchUnlocked = ok;
-
-    if (ok && !state.activeCall.dispatchAnnounced) {
-      state.activeCall.dispatchAnnounced = true;
-      log("✅ Despacho liberado: perguntas obrigatórias concluídas.");
-    }
-
-    return ok;
   }
 
   function applyQuestionEffect(effect) {
@@ -2157,7 +2159,7 @@ function getProtocolDef(callDef) {
     c.callTTL = Math.max(0, c.callTTL - 6);
     appendTranscript(c, [`⚠️ [Sistema] Ocorrência agravou (${reason || "tempo"}). Gravidade agora: ${humanSeverity(c.severity)}.`, ""]);
     log(`⚠️ OCORRÊNCIA AGRAVOU (${reason || "tempo"}). Gravidade agora: ${humanSeverity(c.severity)}.`);
-    renderActiveCall(false);
+    renderActiveCall(true);
   }
 
   function failActiveCall(reason) {
@@ -2229,7 +2231,7 @@ function getProtocolDef(callDef) {
     updateDispatchUnlock();
 
     renderDynamicQuestions();
-    renderActiveCall(false); // mantém a abertura original e só acrescenta o novo trecho
+    renderActiveCall(true); // texto mudou -> atualiza (com typewriter humano)
     renderAll();
   }
 
@@ -2361,16 +2363,10 @@ function getProtocolDef(callDef) {
   if (el.btnHold) el.btnHold.disabled = !(hasShift && hasActive && !state.activeCall.isIncidentFocus);
 
   const canDispatch = hasShift && hasActive && (state.activeCall.dispatchUnlocked || state.activeCall.isIncidentFocus);
-  if (el.dispatchUnitSelect) {
-    el.dispatchUnitSelect.disabled = !canDispatch;
-    if (canDispatch && !el.dispatchUnitSelect.value) {
-      const firstAvailable = [...el.dispatchUnitSelect.options].find((o) => !!o.value);
-      if (firstAvailable) el.dispatchUnitSelect.value = firstAvailable.value;
-    }
-  }
+  if (el.dispatchUnitSelect) el.dispatchUnitSelect.disabled = !canDispatch;
 
   const hasPending = Array.isArray(state.pendingDispatchUnitIds) && state.pendingDispatchUnitIds.length > 0;
-  const selected = !!(el.dispatchUnitSelect && el.dispatchUnitSelect.value);
+  const selected = el.dispatchUnitSelect ? !!el.dispatchUnitSelect.value : false;
 
   if (el.btnAddUnit) el.btnAddUnit.disabled = !(canDispatch && selected);
   if (el.btnDispatch) el.btnDispatch.disabled = !(canDispatch && (hasPending || selected));
@@ -2461,6 +2457,49 @@ function renderIncidents() {
   });
 }
 
+function renderResponseOverview() {
+  if (!el.responseOverview || !el.responseTimeline) return;
+
+  const units = Array.isArray(state.units) ? state.units : [];
+  const available = units.filter((u) => u.status === "available").length;
+  const busyUnits = units.filter((u) => u.status !== "available");
+  const activeIncidents = Array.isArray(state.incidents) ? state.incidents.length : 0;
+  const routeEtas = busyUnits.filter((u) => u.move && typeof u.move.remaining === "number").map((u) => u.move.remaining);
+  const nextEta = routeEtas.length ? Math.min(...routeEtas) : null;
+  const avgEta = routeEtas.length ? Math.round(routeEtas.reduce((a,b)=>a+b,0) / routeEtas.length) : null;
+  const focused = state.focusIncidentUid ? getIncidentByUid(state.focusIncidentUid) : null;
+
+  el.responseOverview.innerHTML = `
+    <div class="responseStat">
+      <div class="responseLabel">Incidentes ativos</div>
+      <div class="responseValue">${activeIncidents}</div>
+    </div>
+    <div class="responseStat">
+      <div class="responseLabel">Unidades disponíveis</div>
+      <div class="responseValue">${available}/${units.length}</div>
+    </div>
+    <div class="responseStat">
+      <div class="responseLabel">Próximo ETA</div>
+      <div class="responseValue">${nextEta === null ? "—" : fmtTime(nextEta)}</div>
+    </div>
+    <div class="responseStat">
+      <div class="responseLabel">ETA médio</div>
+      <div class="responseValue">${avgEta === null ? "—" : fmtTime(avgEta)}</div>
+    </div>
+  `;
+
+  const timeline = [];
+  if (focused) timeline.push(`<div class="timelineItem"><b>Foco:</b> ${escapeHtml(focused.title)} • Gravidade ${escapeHtml(humanSeverity(focused.severity))}</div>`);
+  for (const u of busyUnits.slice().sort((a,b) => (a.move?.remaining ?? 9999) - (b.move?.remaining ?? 9999)).slice(0, 5)) {
+    const eta = u.move && typeof u.move.remaining === "number" ? fmtTime(u.move.remaining) : "—";
+    const phaseMap = { enroute: "A caminho", onscene: "No local", returning: "Retornando" };
+    const phase = phaseMap[u.move?.phase] || u.status;
+    timeline.push(`<div class="timelineItem"><b>${escapeHtml(u.name)}</b> • ${escapeHtml(phase)} • ETA ${eta}</div>`);
+  }
+  if (!timeline.length) timeline.push('<div class="timelineItem">Nenhuma unidade em deslocamento.</div>');
+  el.responseTimeline.innerHTML = timeline.join('');
+}
+
 function renderSummary() {
     if (!el.shiftSummary) return;
 
@@ -2529,11 +2568,7 @@ function renderSummary() {
 ensureTranscriptInitialized(c);
 
 let convo = c.transcriptText || "";
-if (def.hint && !c.hintInjected) {
-  appendTranscript(c, [`[Dica] ${def.hint}`, ""]);
-  c.hintInjected = true;
-  convo = c.transcriptText || "";
-}
+if (def.hint) convo += `[Dica] ${def.hint}\n`;
 
     const sameCall = state.ui.lastCallUid === c.uid;
     const sameText = state.ui.lastTranscript === convo;
@@ -2553,11 +2588,9 @@ if (def.hint && !c.hintInjected) {
     } else if (!force && sameCall && state.ui.lastTranscript && convo.startsWith(state.ui.lastTranscript)) {
       // ✅ Não reescreve o "190/193..." toda hora.
       // Em vez disso, finaliza o que estiver animando e digita apenas o trecho novo.
-      const previous = state.ui.lastTranscript || "";
-      const delta = convo.slice(previous.length);
       skipTypewriter(el.callText);
       state.ui.lastTranscript = convo;
-      if (delta) typewriterAppend(el.callText, delta, twOpts);
+      typewriterAppend(el.callText, convo, twOpts);
     } else {
       state.ui.lastCallUid = c.uid;
       state.ui.lastTranscript = convo;
@@ -2565,16 +2598,9 @@ if (def.hint && !c.hintInjected) {
     }
 
     if (el.dispatchInfo) {
-      if (c.dispatchUnlocked || c.isIncidentFocus) {
-        el.dispatchInfo.textContent = `Despacho liberado. Selecione a unidade e despache.`;
-      } else {
-        const protocol = getProtocolDef(c.def);
-        const required = Array.isArray(protocol.required) ? protocol.required : [];
-        const missing = required.filter((qid) => !c.asked[qid]);
-        el.dispatchInfo.textContent = missing.length
-          ? `Despacho bloqueado. Falta perguntar: ${missing.join(', ')}.`
-          : `Despacho bloqueado. Faça as perguntas obrigatórias primeiro.`;
-      }
+      el.dispatchInfo.textContent = c.dispatchUnlocked
+        ? `Despacho liberado. Selecione a unidade e despache.`
+        : `Despacho bloqueado. Faça as perguntas obrigatórias primeiro.`;
     }
   }
 
@@ -2765,7 +2791,6 @@ if (def.hint && !c.hintInjected) {
 
     spawnCall();
     spawnCall();
-    if (state.queue.length === 0) spawnEmergencyFallbackCall();
 if (state.queue.length === 0) {
   log("⚠️ Nenhuma chamada entrou na fila. Isso geralmente significa CALLS vazio ou filtro muito restrito.");
   log("🔧 Verifique no console se data/calls.js carregou e se a agência selecionada tem ocorrências.");
@@ -2818,16 +2843,6 @@ if (state.queue.length === 0) {
     renderAll();
   }
 
-  function spawnEmergencyFallbackCall() {
-    const defs = getEligibleCalls();
-    if (!defs.length) return;
-    const def = defs[Math.floor(Math.random() * defs.length)];
-    const call = buildCallFromDef(def);
-    if (!call) return;
-    state.queue.push(call);
-    log(`📡 Fallback de fila acionado: ${call.def.title}`);
-  }
-
   function answerNext() {
     if (!state.shiftActive) {
       log("⚠️ Inicie o turno antes de atender chamadas.");
@@ -2836,9 +2851,6 @@ if (state.queue.length === 0) {
     if (state.activeCall) {
       log("⚠️ Já existe uma chamada ativa em atendimento.");
       return;
-    }
-    if (!state.queue.length) {
-      spawnEmergencyFallbackCall();
     }
     if (!state.queue.length) {
       log("⏳ Ainda não há chamada na fila. Aguarde a próxima entrada.");
@@ -2872,7 +2884,7 @@ if (state.queue.length === 0) {
 
     renderUnits();
     renderDynamicQuestions();
-    renderActiveCall(false);
+    renderActiveCall(true);
     renderAll();
   }
 
@@ -3305,11 +3317,12 @@ function computeEtaForUnit(unit, call, severityNow) {
   function renderAll() {
     updateHud();
     updatePills();
+    setButtons();
     renderQueue();
     renderIncidents();
+    renderResponseOverview();
     renderDispatchSelectedList();
     renderUnits();
-    setButtons();
     renderActiveCall(false);
     renderDynamicQuestions();
     renderSummary();
@@ -3504,7 +3517,6 @@ function computeEtaForUnit(unit, call, severityNow) {
     if (el.btnAddUnit) el.btnAddUnit.addEventListener("click", addPendingDispatchUnit);
     if (el.btnDispatch) el.btnDispatch.addEventListener("click", dispatchSelectedUnit);
     if (el.btnDismiss) el.btnDismiss.addEventListener("click", dismissCall);
-    if (el.dispatchUnitSelect) el.dispatchUnitSelect.addEventListener("change", () => setButtons());
 
     // ✅ NOVO: tocar no texto da chamada "pula" o typewriter e mostra tudo
     if (el.callText) {
@@ -3528,8 +3540,7 @@ function computeEtaForUnit(unit, call, severityNow) {
       projectStatusEl.innerHTML = `<b>Versão:</b> ${BUILD.version} • <b>Stage:</b> ${BUILD.stage}<br><b>Build:</b> ${BUILD.builtAt}<br><b>Conclusão estimada:</b> ${PROJECT.completion}%<br><b>Foco:</b> ${PROJECT.focus}`;
     }
 
-    // Load optional content packs and DLC packs (non-blocking)
-    tryLoadContentPacks();
+    // Stage 5: load optional DLC packs (non-blocking)
     tryLoadDlcPacks();
 
     // Stage 4: load saved profile (career + unlocks + last settings)

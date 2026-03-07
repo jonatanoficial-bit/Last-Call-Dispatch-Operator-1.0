@@ -1,0 +1,9 @@
+Last Call Dispatch Operator - Build 1.3.0
+Built at: 2026-03-07 10:30:00 UTC
+Conclusão estimada: 74%
+
+Implementado nesta build:
+- Sistema de Resposta com estatísticas operacionais em tempo real
+- Linha do tempo das unidades em deslocamento
+- Rotas visuais no mapa para viaturas, ambulâncias e bombeiros
+- Atualização de metadados de build para equipe e deploy
