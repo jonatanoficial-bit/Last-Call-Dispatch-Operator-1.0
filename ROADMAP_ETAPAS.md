@@ -1,59 +1,39 @@
 # Roadmap de atualização — Last Call Dispatch Operator
 
-**Build:** 1.1.0 / Stage 8A
+**Build:** 1.4.0 / Phase 5A  
+**Build gerada em:** 2026-04-16 19:47:01 BRT  
+**Conclusão atual estimada:** **78%**
 
-**Build gerada em:** 2026-03-06 09:26:38 BRT
+## Etapas até o padrão comercial internacional
 
-**Conclusão atual estimada:** **54%**
-
-## Etapas planejadas até a versão comercial
-
-1. **Estabilização da base web** — corrigir HTML, script principal, cache e integridade do build.  
+1. **Governança de build e rastreabilidade** — versão, data/hora e progresso sempre visíveis; pacote sempre completo em ZIP.  
    **Status:** concluído nesta build.
 
-2. **Base jogável BR/EUA** — padronizar cidades principais, linhas 190/192/193 e 911, nomes de unidades e UX inicial.  
-   **Status:** parcialmente concluído nesta build.
-
-3. **Núcleo médico dedicado** — separar agência Ambulância/SAMU/EMS, criar pool próprio de chamadas e despacho.  
+2. **Roster base internacional** — cidades iniciais com forças nomeadas por agência e país.  
    **Status:** concluído em primeira versão nesta build.
 
-4. **Expansão de conteúdo** — aumentar volume de chamadas, protocolos, consequências, casos especiais, eventos e incidentes encadeados.  
+3. **Despacho confiável** — compatibilidade real entre tipo de ocorrência e papel operacional da unidade.  
+   **Status:** concluído nesta build.
+
+4. **Mobile-first polish** — HUD, topbar, mapa e botões adaptados para telas menores.  
+   **Status:** concluído em primeira versão nesta build.
+
+5. **Conteúdo premium por cidade** — chamadas exclusivas, sotaques/textos locais, protocolos por região e eventos especiais.  
    **Status:** pendente.
 
-5. **Vertical slice premium** — identidade visual forte, áudio consistente, telas de briefing/debriefing, indicadores cinematográficos, onboarding e retenção.  
-   **Status:** pendente.
-
-6. **Campanha comercial** — progressão longa, avaliação por cidade, economia, upgrades robustos, metas semanais e dificuldade avançada.  
+6. **Modo carreira comercial** — progressão longa, avaliações por cidade, economia mais profunda, especializações e promoções.  
    **Status:** parcialmente concluído.
 
-7. **Polimento de lançamento** — QA, balancing, acessibilidade, internacionalização, analytics, saves sólidos, testes em Vercel/GitHub.  
+7. **Vertical slice premium** — briefing/debriefing, onboarding, áudio consistente, UX cinematográfica, acessibilidade e retenção.  
    **Status:** pendente.
 
-8. **DLCs e valor agregado** — outros países, centrais especiais, modo crise, eventos catastróficos e pacotes regionais.  
+8. **Monetização e DLCs** — pacotes regionais, crises especiais, eventos catastróficos, novas centrais e conteúdo sazonal.  
    **Status:** planejado.
 
-## O que foi corrigido nesta build
-
-- Corrigido carregamento do script principal no `index.html`.
-- Corrigido erro de sintaxe no `script.js` que impedia validação saudável do build.
-- Corrigida estrutura HTML com fechamento incorreto de tags.
-- Adicionada agência **Ambulância / SAMU / EMS** na UI.
-- Adicionadas chamadas médicas inéditas no `data/calls.js`.
-- Adicionadas unidades médicas dedicadas para Brasil e EUA.
-- Adicionado tema visual de agência médica.
-- Adicionados metadados de build e status de conclusão do projeto.
-- Preparado o projeto para deploy estático com `.nojekyll` e `vercel.json`.
-
-## Próxima meta recomendada
-
-Levar o projeto a **65%** focando em:
-- mais 30 a 50 ocorrências novas;
-- mais cidades BR/EUA com nomenclatura real;
-- refino de UX do despacho;
-- relatórios pós-incidente mais profundos;
-- tutorial introdutório.
-
-
-## Build 1.1.1 / Stage 8B
-- Correção crítica do fluxo de atendimento: botões duplicados de início/fim de turno agora acionam a lógica principal.
-- Estado pós-build: 56% concluído.
+## Meta da próxima build
+Levar o projeto a **85%** com foco em:
+- 25 a 40 novas ocorrências exclusivas por cidade/região;
+- tela de debriefing premium com KPIs, multas, bônus e vidas salvas;
+- tutorial guiado do primeiro plantão;
+- balanceamento de ETA, reputação e economia;
+- base pronta para DLC regional e testes de monetização.

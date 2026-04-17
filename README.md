@@ -1,30 +1,27 @@
-# Last Call Dispatch Operator — Build 1.1.0 / Stage 8A
+# Last Call Dispatch Operator — Build 1.4.0 / Phase 5A
 
-Build gerada em **2026-03-06 09:26:38 BRT**.
+Build gerada em **2026-04-16 19:47:01 BRT**.
 
 ## Status atual
-- Projeto web estático (HTML/CSS/JS)
-- Compatível com GitHub Pages e Vercel
-- Base jogável com Polícia, Bombeiros e Ambulância/SAMU/EMS
-- Progressão, economia e upgrades já presentes em nível inicial
-- **Conclusão estimada do projeto:** **54%**
+- Projeto web estático (HTML/CSS/JS) pronto para deploy em GitHub Pages e Vercel.
+- Build governada por `build-info.json`, com versão e data/hora visíveis no jogo.
+- Base jogável com Polícia, Bombeiros e Ambulância/SAMU/EMS.
+- Roster internacional inicial liberado: **São Paulo, Rio de Janeiro, New York City, Tokyo, Rome e Berlin**.
+- **Conclusão estimada do projeto:** **78%**.
 
 ## Arquivos de acompanhamento da equipe
 - `build-info.json`
-- `ROADMAP_ETAPAS.md`
+- `BUILD_INFO.json`
+- `BUILD_CURRENT.txt`
 - `CHANGELOG_BUILD.md`
+- `ROADMAP_ETAPAS.md`
+- `BUILD_GOVERNANCE.md`
 
-## Deploy
-### GitHub Pages
-- Suba a pasta inteira no repositório.
-- Mantenha o arquivo `.nojekyll`.
-- Publique a branch principal com a raiz do projeto.
-
-### Vercel
-- Importe o repositório.
-- Framework preset: `Other`.
-- Build command: vazio.
-- Output directory: `.`
+## O que esta build entrega
+- Build rule centralizada: versão, timestamp e progresso sempre visíveis.
+- Correção do sistema de despacho por papel de unidade.
+- Mobile pass inicial com HUD/header mais estáveis em telas pequenas.
+- Catálogo inicial de cidades e forças por agência para a vertical slice comercial.
 
 ## Próxima sprint sugerida
-Levar a build para **65%** com expansão de conteúdo, polimento visual e novos fluxos de despacho.
+Levar a build para **85%** com: mais ocorrências por cidade, briefing/debriefing premium, tutorial, balanceamento fino e trilha de monetização/DLC.

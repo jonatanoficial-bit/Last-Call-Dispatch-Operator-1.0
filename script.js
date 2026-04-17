@@ -8,23 +8,68 @@
 (function () {
   "use strict";
 
-const BUILD_TAG = "Phase 4 • Build 2026-03-07 10:30:00 UTC (operational-map-response-system)";
+const BUILD_FALLBACK = {
+    game: "Last Call Dispatch Operator",
+    version: "1.4.0",
+    stage: "Phase 5A",
+    built_at: "2026-04-16 19:47:01 BRT",
+    built_at_utc: "2026-04-16 22:47:01 UTC",
+    completion_percent: 78,
+    focus: "governança de build, roster internacional base, correção de despacho por papéis e pass mobile-first",
+    release_channel: "mainline",
+    tag: "launch-roster-mobile-governance-pass"
+  };
+  let BUILD_META = { ...BUILD_FALLBACK };
 
-  // ----------------------------
-  // Build info (always visible)
-  // ----------------------------
-  const BUILD = {
-    version: "1.3.0",
-    stage: "Phase 4",
-    builtAt: "2026-03-07 10:30:00 UTC",
-    tag: "operational-map-response-system",
-  };
-  const PROJECT = {
-    completion: 74,
-    roadmapStages: 8,
-    focus: "Mapa operacional, painel de resposta e rotas visuais de despacho",
-  };
-  const BUILD_TEXT = `Last Call Dispatch Operator ${BUILD.version} • Stage ${BUILD.stage} • Build ${BUILD.builtAt} • Conclusão ${PROJECT.completion}%`; 
+  function buildVersionText(meta = BUILD_META) {
+    return `${meta.game || "Last Call Dispatch Operator"} ${meta.version || "0.0.0"} • ${meta.stage || "Build"} • Build ${meta.built_at || "sem data"} • Conclusão ${Number(meta.completion_percent || 0)}%`;
+  }
+
+  function buildDockText(meta = BUILD_META) {
+    return `Build ${meta.version || "0.0.0"} • ${meta.built_at || "sem data"}`;
+  }
+
+  function buildProjectStatusHtml(meta = BUILD_META) {
+    return `<b>Versão:</b> ${meta.version || "0.0.0"} • <b>Stage:</b> ${meta.stage || "Build"}<br><b>Build:</b> ${meta.built_at || "sem data"}<br><b>Conclusão estimada:</b> ${Number(meta.completion_percent || 0)}%<br><b>Foco:</b> ${escapeHtml(meta.focus || "—")}`;
+  }
+
+  function updateBuildUI(meta = BUILD_META) {
+    const buildEl = document.getElementById("buildInfo");
+    if (buildEl) buildEl.textContent = buildVersionText(meta);
+
+    const buildDockEl = document.getElementById("buildDock");
+    if (buildDockEl) buildDockEl.textContent = buildDockText(meta);
+
+    const projectStatusEl = document.getElementById("projectStatus");
+    if (projectStatusEl) projectStatusEl.innerHTML = buildProjectStatusHtml(meta);
+
+    if (typeof document !== "undefined") {
+      document.title = `${meta.game || "Last Call Dispatch Operator"} • ${meta.version || "0.0.0"}`;
+    }
+  }
+
+  async function loadBuildMeta() {
+    try {
+      const res = await fetch(`./build-info.json?v=${encodeURIComponent(BUILD_FALLBACK.built_at_utc || BUILD_FALLBACK.built_at)}`, { cache: "no-store" });
+      if (!res.ok) {
+        updateBuildUI(BUILD_META);
+        return;
+      }
+      const data = await res.json();
+      if (!data || typeof data !== "object") {
+        updateBuildUI(BUILD_META);
+        return;
+      }
+      BUILD_META = {
+        ...BUILD_FALLBACK,
+        ...data,
+        completion_percent: Number(data.completion_percent ?? BUILD_FALLBACK.completion_percent) || BUILD_FALLBACK.completion_percent,
+      };
+      updateBuildUI(BUILD_META);
+    } catch (err) {
+      updateBuildUI(BUILD_META);
+    }
+  }
 
   // ----------------------------
   // Helpers
@@ -59,10 +104,14 @@ const BUILD_TAG = "Phase 4 • Build 2026-03-07 10:30:00 UTC (operational-map-re
     return { key: "police", label: "Polícia", icon: "🚓" };
   }
 
+  function getCityConfig(cityId) {
+    return getCities().find((x) => x.id === cityId) || null;
+  }
+
   function cityCountryById(cityId) {
-    const c = getCities().find((x) => x.id === cityId);
+    const c = getCityConfig(cityId);
     const cc = String(c && c.country ? c.country : "BR").toUpperCase();
-    if (cc === "UK") return "EU";
+    if (["UK", "IT", "DE", "FR", "ES", "PT"].includes(cc)) return "EU";
     return cc;
   }
 
@@ -73,14 +122,14 @@ const BUILD_TAG = "Phase 4 • Build 2026-03-07 10:30:00 UTC (operational-map-re
       if (cityCountry === "JP") return "AS";
       if (cityCountry === "AU") return "OC";
       if (cityCountry === "ZA") return "AF";
-      if (cityCountry === "EU" || cityCountry === "UK") return "EU";
+      if (cityCountry === "EU" || cityCountry === "UK" || cityCountry === "IT" || cityCountry === "DE") return "EU";
       if (cityCountry === "US") return "US";
       return "BR";
     }
     if (raw === "JP") return "AS";
     if (raw === "AU") return "OC";
     if (raw === "ZA") return "AF";
-    if (raw === "UK") return "EU";
+    if (["UK", "EU", "IT", "DE", "FR", "ES", "PT"].includes(raw)) return "EU";
     return raw;
   }
 
@@ -89,6 +138,7 @@ const BUILD_TAG = "Phase 4 • Build 2026-03-07 10:30:00 UTC (operational-map-re
   // ----------------------------
   const CITY_CENTERS = {
     br_sp: { lat: -23.5505, lng: -46.6333 },
+    br_rj: { lat: -22.9068, lng: -43.1729 },
     br_df: { lat: -15.7939, lng: -47.8828 },
     us_nyc: { lat: 40.7128, lng: -74.0060 },
     us_la: { lat: 34.0522, lng: -118.2437 },
@@ -121,15 +171,40 @@ const BUILD_TAG = "Phase 4 • Build 2026-03-07 10:30:00 UTC (operational-map-re
       streets: ["Av. Paulista", "Rua da Consolação", "Av. Rebouças", "Av. Ibirapuera", "Av. Cruzeiro do Sul"],
       refs: ["próximo ao metrô", "perto de um posto de gasolina", "em frente a uma farmácia", "ao lado de um shopping"],
     },
+    br_rj: {
+      districts: ["Copacabana", "Tijuca", "Barra da Tijuca", "Botafogo", "Centro"],
+      streets: ["Av. Atlântica", "Rua Conde de Bonfim", "Av. Rio Branco", "Av. das Américas", "Rua Voluntários da Pátria"],
+      refs: ["próximo à praia", "ao lado de uma estação", "em frente a um mercado", "perto de um túnel"],
+    },
+    br_df: {
+      districts: ["Asa Sul", "Asa Norte", "Taguatinga", "Águas Claras", "Ceilândia"],
+      streets: ["Eixo Monumental", "W3 Sul", "W3 Norte", "EPTG", "Via L2"],
+      refs: ["próximo a um comércio", "ao lado de uma quadra", "em frente a um hospital", "perto de uma estação"],
+    },
     us_nyc: {
       districts: ["Midtown", "Lower Manhattan", "Harlem", "Brooklyn", "Queens"],
       streets: ["5th Avenue", "Broadway", "Madison Avenue", "Wall Street", "Lexington Avenue"],
       refs: ["near a subway entrance", "by a convenience store", "in front of a bank", "near a park"],
     },
+    us_la: {
+      districts: ["Downtown", "Hollywood", "Koreatown", "Venice", "Westwood"],
+      streets: ["Sunset Boulevard", "Wilshire Boulevard", "Hollywood Boulevard", "Figueroa Street", "Melrose Avenue"],
+      refs: ["near a freeway exit", "in front of a strip mall", "near a gas station", "next to a studio gate"],
+    },
     eu_ldn: {
       districts: ["Westminster", "Camden", "Southwark", "Hackney", "Kensington"],
       streets: ["Oxford Street", "Regent Street", "Whitehall", "Baker Street", "The Strand"],
       refs: ["near a bus stop", "by the underground", "outside a pub", "near a square"],
+    },
+    it_rom: {
+      districts: ["Centro Storico", "Trastevere", "Prati", "EUR", "San Giovanni"],
+      streets: ["Via del Corso", "Via Nazionale", "Viale Trastevere", "Via Appia Nuova", "Lungotevere"],
+      refs: ["vicino a una stazione", "davanti a un bar", "accanto a una farmacia", "vicino a una piazza"],
+    },
+    de_ber: {
+      districts: ["Mitte", "Kreuzberg", "Prenzlauer Berg", "Charlottenburg", "Neukölln"],
+      streets: ["Unter den Linden", "Friedrichstraße", "Karl-Marx-Allee", "Kurfürstendamm", "Sonnenallee"],
+      refs: ["near an S-Bahn station", "by a kiosk", "next to a crossing", "near a square"],
     },
     jp_tokyo: {
       districts: ["Shinjuku", "Shibuya", "Chiyoda", "Minato", "Taito"],
@@ -556,12 +631,13 @@ function setIncidentOnMap(call) {
   // ----------------------------
   const STORAGE_KEY = "lcdo_profile_v1";
 
+  const BASE_LAUNCH_CITIES = ["br_sp", "br_rj", "us_nyc", "jp_tokyo", "it_rom", "de_ber"];
+
   const UNLOCKS_BY_RANK = {
-    // Base game focado em Brasil + EUA. Outras regiões ficam para DLCs futuras.
-    Recruta: ["br_sp"],
-    Operador: ["br_df"],
-    "Sênior": ["us_nyc"],
-    Supervisor: ["br_rj", "us_la"],
+    Recruta: [...BASE_LAUNCH_CITIES],
+    Operador: ["br_df", "eu_ldn"],
+    "Sênior": ["us_la"],
+    Supervisor: ["au_syd"],
   };
 
   // Stage 5: unit roles unlocked by progression. These roles must match the
@@ -572,6 +648,59 @@ function setIncidentOnMap(call) {
     "Sênior": ["tactical_rota", "shock_riot"],
     Supervisor: ["air_eagle", "bomb_gate", "hazmat"],
   };
+
+  const ROLE_LABELS = {
+    area_patrol: "Patrulha / rádio patrulha",
+    civil_investigation: "Investigação",
+    tactical_rota: "Tático / operações especiais",
+    shock_riot: "Choque / controle de distúrbio",
+    bomb_gate: "Antibomba / EOD",
+    air_eagle: "Suporte aéreo",
+    fire_engine: "Combate a incêndio",
+    ladder_truck: "Auto escada / ladder",
+    fire_rescue: "Resgate",
+    hazmat: "Produtos perigosos / HazMat",
+    medic_ambulance: "Unidade médica",
+  };
+
+  const ROLE_MATCHERS = {
+    area_patrol: ["area_patrol", "patrol", "traffic"],
+    civil_investigation: ["civil_investigation", "investigation"],
+    tactical_rota: ["tactical_rota", "tactical"],
+    shock_riot: ["shock_riot", "tactical"],
+    bomb_gate: ["bomb_gate", "tactical"],
+    air_eagle: ["air_eagle"],
+    fire_engine: ["fire_engine"],
+    ladder_truck: ["ladder_truck", "fire_engine", "rescue"],
+    fire_rescue: ["fire_rescue", "rescue"],
+    hazmat: ["hazmat"],
+    medic_ambulance: ["medic_ambulance"],
+  };
+
+  function roleLabel(role) {
+    return ROLE_LABELS[String(role || "")] || String(role || "—");
+  }
+
+  function roleMatchSet(role) {
+    const key = String(role || "");
+    return new Set(ROLE_MATCHERS[key] || [key]);
+  }
+
+  function unitMatchSet(unit) {
+    const derived = Array.from(roleMatchSet(unit && unit.role));
+    const explicit = Array.isArray(unit && unit.matchRoles) ? unit.matchRoles.map((x) => String(x)) : [];
+    return new Set([...derived, ...explicit]);
+  }
+
+  function unitCanHandleRole(unit, requiredRole) {
+    if (!requiredRole || requiredRole === "any") return true;
+    return unitMatchSet(unit).has(String(requiredRole));
+  }
+
+  function unitMatchesAnyRole(unit, requiredRoles) {
+    if (!Array.isArray(requiredRoles) || !requiredRoles.length) return true;
+    return requiredRoles.some((requiredRole) => unitCanHandleRole(unit, requiredRole));
+  }
 
   // ----------------------------
   // Stage 6: Upgrades (Tecnologia / Treinamento)
@@ -707,7 +836,7 @@ function setIncidentOnMap(call) {
         totalLivesSaved: 0,
       },
       progress: {
-        unlockedCities: allUnlocksUpToRank("Recruta"),
+        unlockedCities: [...BASE_LAUNCH_CITIES],
         // Stage 5: unit roles unlocked by career/economy
         unlockedUnitRoles: allUnitRoleUnlocksUpToRank("Recruta"),
       },
@@ -746,6 +875,7 @@ function setIncidentOnMap(call) {
       if (!p.career) p.career = defaultProfile().career;
       if (!p.progress) p.progress = defaultProfile().progress;
       if (!Array.isArray(p.progress.unlockedCities)) p.progress.unlockedCities = defaultProfile().progress.unlockedCities;
+      p.progress.unlockedCities = Array.from(new Set([...(Array.isArray(p.progress.unlockedCities) ? p.progress.unlockedCities : []), ...BASE_LAUNCH_CITIES]));
       if (!Array.isArray(p.progress.unlockedUnitRoles)) p.progress.unlockedUnitRoles = defaultProfile().progress.unlockedUnitRoles;
       if (!p.campaign) p.campaign = defaultProfile().campaign;
       if (!p.economy) p.economy = defaultProfile().economy;
@@ -1229,7 +1359,7 @@ function selfCheck() {
 
     // Stage 4: desbloqueios (carreira)
     progress: {
-      unlockedCities: ["br_sp"],
+      unlockedCities: [...BASE_LAUNCH_CITIES],
       unlockedUnitRoles: ["area_patrol", "fire_engine", "fire_rescue", "medic_ambulance"],
     },
 
@@ -1549,11 +1679,15 @@ function selfCheck() {
   // Abertura por região
   // ----------------------------
   function lineByRegion(region, agency) {
-    const r = resolveRegion(region);
+    const city = getCityConfig(state.cityId);
     const a = String(agency || "police").toLowerCase();
+    if (city && city.emergencyNumbers && city.emergencyNumbers[a]) {
+      return city.emergencyNumbers[a];
+    }
+    const r = resolveRegion(region);
     if (r === "BR") return a === "fire" ? "193" : a === "ambulance" ? "192" : "190";
     if (r === "US") return "911";
-    if (r === "EU") return "112";
+    if (r === "EU") return a === "fire" ? "115/112" : a === "ambulance" ? "118/112" : "112";
     if (r === "OC") return "000";
     if (r === "AS") return a === "fire" || a === "ambulance" ? "119" : "110";
     if (r === "AF") return a === "fire" || a === "ambulance" ? "10177/112" : "10111/112";
@@ -1561,8 +1695,15 @@ function selfCheck() {
   }
 
   function defaultOpener(region, agency) {
-    const r = resolveRegion(region);
+    const city = getCityConfig(state.cityId);
     const a = String(agency || "police").toLowerCase();
+    if (city) {
+      if (a === "fire" && city.greetingFire) return city.greetingFire;
+      if (a === "ambulance" && city.greetingAmbulance) return city.greetingAmbulance;
+      if (a === "police" && city.greetingPolice) return city.greetingPolice;
+    }
+
+    const r = resolveRegion(region);
     if (r === "BR") {
       if (a === "fire") return "193, Bombeiros. Qual sua emergência?";
       if (a === "ambulance") return "192, SAMU. Qual é a emergência médica?";
@@ -1573,7 +1714,7 @@ function selfCheck() {
       if (a === "ambulance") return "911, EMS. Tell me the exact location of the patient.";
       return "911, what's your emergency?";
     }
-    if (r === "EU") return a === "ambulance" ? "112, ambulance service. What is the location and condition of the patient?" : "112, emergência. Qual a sua localização e situação?";
+    if (r === "EU") return a === "ambulance" ? "112, ambulance service. What is the location and condition of the patient?" : "112, emergency services. What is the exact location and situation?";
     if (r === "OC") return "000, do you need Police, Fire or Ambulance?";
     if (r === "AS") return a === "police" ? "110, Police. What's your emergency?" : "119, Fire/Ambulance. What's the emergency?";
     return "Central de emergência. Qual é a ocorrência?";
@@ -1583,83 +1724,94 @@ function selfCheck() {
   // Unidades
   // ----------------------------
   function getUnitsFor(cityId, agency) {
+    const city = getCityConfig(cityId);
     const country = cityCountryById(cityId);
     const a = String(agency || "police").toLowerCase();
+
+    const cityUnits = city && city.units && Array.isArray(city.units[a]) ? city.units[a] : null;
+    if (cityUnits && cityUnits.length) {
+      return cityUnits.map((u, idx) => ({
+        status: "available",
+        matchRoles: Array.from(new Set([...(Array.isArray(u.matchRoles) ? u.matchRoles : []), ...Array.from(roleMatchSet(u.role))])),
+        ...u,
+        id: u.id || `${a}_${idx + 1}`,
+      }));
+    }
 
     if (a === "police") {
       if (country === "BR") {
         return [
-          { id: "u_area_1", name: "PM Área (VTR)", role: "area_patrol", status: "available" },
-          { id: "u_rota_1", name: "ROTA / Força Tática", role: "tactical_rota", status: "available" },
-          { id: "u_choque_1", name: "Choque", role: "shock_riot", status: "available" },
-          { id: "u_gate_1", name: "GATE (Antibomba)", role: "bomb_gate", status: "available" },
-          { id: "u_aguia_1", name: "Águia (Helicóptero)", role: "air_eagle", status: "available" },
-          { id: "u_pc_1", name: "Polícia Civil (Investigação)", role: "civil_investigation", status: "available" },
+          { id: "u_area_1", name: "Patrulha de Área (VTR)", role: "area_patrol", matchRoles: ["patrol", "traffic"], status: "available" },
+          { id: "u_rota_1", name: "ROTA / Força Tática", role: "tactical_rota", matchRoles: ["tactical"], status: "available" },
+          { id: "u_choque_1", name: "Choque", role: "shock_riot", matchRoles: ["tactical"], status: "available" },
+          { id: "u_gate_1", name: "GATE (Antibomba)", role: "bomb_gate", matchRoles: ["tactical"], status: "available" },
+          { id: "u_aguia_1", name: "Águia (Helicóptero)", role: "air_eagle", matchRoles: ["air_eagle"], status: "available" },
+          { id: "u_pc_1", name: "Polícia Civil (Investigação)", role: "civil_investigation", matchRoles: ["investigation"], status: "available" },
         ];
       }
       if (country === "US") {
         return [
-          { id: "u_patrol_1", name: "Area Patrol", role: "area_patrol", status: "available" },
-          { id: "u_swat_1", name: "SWAT", role: "tactical_rota", status: "available" },
-          { id: "u_detective_1", name: "Detective Unit", role: "civil_investigation", status: "available" },
-          { id: "u_bomb_1", name: "Bomb Squad", role: "bomb_gate", status: "available" },
-          { id: "u_air_1", name: "Air Support", role: "air_eagle", status: "available" },
+          { id: "u_patrol_1", name: "Area Patrol", role: "area_patrol", matchRoles: ["patrol", "traffic"], status: "available" },
+          { id: "u_swat_1", name: "SWAT", role: "tactical_rota", matchRoles: ["tactical"], status: "available" },
+          { id: "u_detective_1", name: "Detective Unit", role: "civil_investigation", matchRoles: ["investigation"], status: "available" },
+          { id: "u_bomb_1", name: "Bomb Squad", role: "bomb_gate", matchRoles: ["tactical"], status: "available" },
+          { id: "u_air_1", name: "Air Support", role: "air_eagle", matchRoles: ["air_eagle"], status: "available" },
         ];
       }
       return [
-        { id: "u_patrol_1", name: "Patrol Unit", role: "area_patrol", status: "available" },
-        { id: "u_tac_1", name: "Tactical Unit", role: "tactical_rota", status: "available" },
-        { id: "u_invest_1", name: "Investigation", role: "civil_investigation", status: "available" },
+        { id: "u_patrol_1", name: "Patrol Unit", role: "area_patrol", matchRoles: ["patrol", "traffic"], status: "available" },
+        { id: "u_tac_1", name: "Tactical Unit", role: "tactical_rota", matchRoles: ["tactical"], status: "available" },
+        { id: "u_invest_1", name: "Investigation", role: "civil_investigation", matchRoles: ["investigation"], status: "available" },
       ];
     }
 
     if (a === "ambulance") {
       if (country === "BR") {
         return [
-          { id: "m_usb_1", name: "USB (Suporte Básico)", role: "medic_ambulance", status: "available" },
-          { id: "m_usa_1", name: "USA (Suporte Avançado)", role: "medic_ambulance", status: "available" },
-          { id: "m_moto_1", name: "Motolância", role: "fire_rescue", status: "available" },
-          { id: "m_air_1", name: "Aeromédico", role: "air_eagle", status: "available" },
+          { id: "m_usb_1", name: "USB (Suporte Básico)", role: "medic_ambulance", matchRoles: ["medic_ambulance"], status: "available" },
+          { id: "m_usa_1", name: "USA (Suporte Avançado)", role: "medic_ambulance", matchRoles: ["medic_ambulance"], status: "available" },
+          { id: "m_moto_1", name: "Motolância", role: "medic_ambulance", matchRoles: ["medic_ambulance"], status: "available" },
+          { id: "m_air_1", name: "Aeromédico", role: "air_eagle", matchRoles: ["air_eagle"], status: "available" },
         ];
       }
       if (country === "US") {
         return [
-          { id: "m_amb_1", name: "BLS Ambulance", role: "medic_ambulance", status: "available" },
-          { id: "m_als_1", name: "ALS Paramedic Unit", role: "medic_ambulance", status: "available" },
-          { id: "m_rescue_1", name: "Rescue Medic", role: "fire_rescue", status: "available" },
-          { id: "m_air_1", name: "Air Ambulance", role: "air_eagle", status: "available" },
+          { id: "m_amb_1", name: "BLS Ambulance", role: "medic_ambulance", matchRoles: ["medic_ambulance"], status: "available" },
+          { id: "m_als_1", name: "ALS Paramedic Unit", role: "medic_ambulance", matchRoles: ["medic_ambulance"], status: "available" },
+          { id: "m_rescue_1", name: "Rescue Medic", role: "fire_rescue", matchRoles: ["rescue", "fire_rescue"], status: "available" },
+          { id: "m_air_1", name: "Air Ambulance", role: "air_eagle", matchRoles: ["air_eagle"], status: "available" },
         ];
       }
       return [
-        { id: "m_amb_1", name: "Ambulance", role: "medic_ambulance", status: "available" },
-        { id: "m_rescue_1", name: "Rescue Medic", role: "fire_rescue", status: "available" },
+        { id: "m_amb_1", name: "Ambulance", role: "medic_ambulance", matchRoles: ["medic_ambulance"], status: "available" },
+        { id: "m_rescue_1", name: "Rescue Medic", role: "fire_rescue", matchRoles: ["rescue", "fire_rescue"], status: "available" },
       ];
     }
 
     if (country === "BR") {
       return [
-        { id: "f_engine_1", name: "Auto Bomba (AB)", role: "fire_engine", status: "available" },
-        { id: "f_ladder_1", name: "Auto Escada", role: "ladder_truck", status: "available" },
-        { id: "f_rescue_1", name: "Resgate (UR)", role: "fire_rescue", status: "available" },
-        { id: "f_haz_1", name: "Produtos Perigosos", role: "hazmat", status: "available" },
-        { id: "f_medic_1", name: "Ambulância de Apoio", role: "medic_ambulance", status: "available" },
+        { id: "f_engine_1", name: "Auto Bomba (AB)", role: "fire_engine", matchRoles: ["fire_engine"], status: "available" },
+        { id: "f_ladder_1", name: "Auto Escada", role: "ladder_truck", matchRoles: ["fire_engine", "rescue"], status: "available" },
+        { id: "f_rescue_1", name: "Resgate (UR)", role: "fire_rescue", matchRoles: ["fire_rescue", "rescue"], status: "available" },
+        { id: "f_haz_1", name: "Produtos Perigosos", role: "hazmat", matchRoles: ["hazmat"], status: "available" },
+        { id: "f_medic_1", name: "Ambulância de Apoio", role: "medic_ambulance", matchRoles: ["medic_ambulance"], status: "available" },
       ];
     }
 
     if (country === "US") {
       return [
-        { id: "f_engine_1", name: "Engine", role: "fire_engine", status: "available" },
-        { id: "f_ladder_1", name: "Ladder", role: "ladder_truck", status: "available" },
-        { id: "f_rescue_1", name: "Rescue", role: "fire_rescue", status: "available" },
-        { id: "f_haz_1", name: "HazMat", role: "hazmat", status: "available" },
-        { id: "f_medic_1", name: "EMS Support", role: "medic_ambulance", status: "available" },
+        { id: "f_engine_1", name: "Engine", role: "fire_engine", matchRoles: ["fire_engine"], status: "available" },
+        { id: "f_ladder_1", name: "Ladder", role: "ladder_truck", matchRoles: ["fire_engine", "rescue"], status: "available" },
+        { id: "f_rescue_1", name: "Rescue", role: "fire_rescue", matchRoles: ["fire_rescue", "rescue"], status: "available" },
+        { id: "f_haz_1", name: "HazMat", role: "hazmat", matchRoles: ["hazmat"], status: "available" },
+        { id: "f_medic_1", name: "EMS Support", role: "medic_ambulance", matchRoles: ["medic_ambulance"], status: "available" },
       ];
     }
 
     return [
-      { id: "f_engine_1", name: "Fire Engine", role: "fire_engine", status: "available" },
-      { id: "f_rescue_1", name: "Rescue", role: "fire_rescue", status: "available" },
-      { id: "f_medic_1", name: "Ambulance", role: "medic_ambulance", status: "available" },
+      { id: "f_engine_1", name: "Fire Engine", role: "fire_engine", matchRoles: ["fire_engine"], status: "available" },
+      { id: "f_rescue_1", name: "Rescue", role: "fire_rescue", matchRoles: ["fire_rescue", "rescue"], status: "available" },
+      { id: "f_medic_1", name: "Ambulance", role: "medic_ambulance", matchRoles: ["medic_ambulance"], status: "available" },
     ];
   }
 
@@ -1707,7 +1859,7 @@ function selfCheck() {
           return `
         <div class="subCard" style="padding:10px; margin-top:0;">
           <div style="font-weight:900;">${escapeHtml(u.name)}${lockTxt}</div>
-          <div style="font-size:12px; color:rgba(233,240,255,0.65)">role: ${escapeHtml(u.role)}</div>
+          <div style="font-size:12px; color:rgba(233,240,255,0.65)">capacidade: ${escapeHtml(roleLabel(u.role))}</div>
           <div style="font-size:12px; color:rgba(233,240,255,0.65)">Status: ${statusTxt}</div>
         </div>`;
         })
@@ -1723,7 +1875,7 @@ function selfCheck() {
         `<option value="">Selecione a unidade</option>` +
         state.units
           .filter((u) => u.status === "available" && !u.locked)
-          .map((u) => `<option value="${escapeHtml(u.id)}">${escapeHtml(u.name)} (${escapeHtml(u.role)})</option>`)
+          .map((u) => `<option value="${escapeHtml(u.id)}">${escapeHtml(u.name)} (${escapeHtml(roleLabel(u.role))})</option>`)
           .join("");
 
       // Restore selection if still available
@@ -1825,7 +1977,9 @@ function selfCheck() {
     const cc = (c.country || "").toUpperCase();
     if (cc === "BR") return "🇧🇷";
     if (cc === "US") return "🇺🇸";
-    if (cc === "EU") return "🇪🇺";
+    if (cc === "EU" || cc === "UK") return "🇪🇺";
+    if (cc === "IT") return "🇮🇹";
+    if (cc === "DE") return "🇩🇪";
     if (cc === "JP") return "🇯🇵";
     if (cc === "IN") return "🇮🇳";
     if (cc === "AU") return "🇦🇺";
@@ -2408,7 +2562,7 @@ function renderQueue() {
   if (!ids.length) { el.dispatchSelectedList.innerHTML = "—"; return; }
   const items = ids.map((id) => {
     const u = state.units.find((x) => x.id === id);
-    return u ? `${escapeHtml(u.name)} <span style="opacity:.7">(${escapeHtml(u.role)})</span>` : escapeHtml(id);
+    return u ? `${escapeHtml(u.name)} <span style="opacity:.7">(${escapeHtml(roleLabel(u.role))})</span>` : escapeHtml(id);
   });
   el.dispatchSelectedList.innerHTML = items.map((t) => `<div class="miniItem">${t}</div>`).join("");
 }
@@ -2607,16 +2761,26 @@ if (def.hint) convo += `[Dica] ${def.hint}\n`;
   // ----------------------------
   // Seleção de caso
   // ----------------------------
+  function isCallSupportedByCurrentRoster(def) {
+    if (!def || !def.dispatch || !Array.isArray(def.dispatch.correctRoles) || !def.dispatch.correctRoles.length) return true;
+    const roles = def.dispatch.correctRoles;
+    if (roles.includes("any") || roles.includes("dismiss_only")) return true;
+    const roster = getUnitsFor(state.cityId, state.agency).filter((u) => isRoleUnlocked(u.role));
+    return roster.some((u) => unitMatchesAnyRole(u, roles));
+  }
+
   function pickCallDef() {
     const calls = getCalls();
     const poolByAgency = calls.filter((c) => (c.agency || "police") === state.agency);
     const pool = poolByAgency.length ? poolByAgency : calls;
+    const supportedPool = pool.filter((c) => isCallSupportedByCurrentRoster(c));
+    const basePool = supportedPool.length ? supportedPool : pool;
 
     const troteChance = state.difficulty === "easy" ? 0.10 : state.difficulty === "hard" ? 0.18 : 0.15;
-    let candidates = pool;
+    let candidates = basePool;
 
     if (Math.random() < troteChance) {
-      const trotes = pool.filter((c) => String(c.baseSeverity).toLowerCase() === "trote");
+      const trotes = basePool.filter((c) => String(c.baseSeverity).toLowerCase() === "trote");
       if (trotes.length) candidates = trotes;
     }
 
@@ -3060,7 +3224,7 @@ function dispatchSelectedUnit() {
 
   // Choose the "primary" unit for scoring: prefer one that matches correctRoles
   let primary = units[0];
-  const match = units.find((u) => correctRoles.includes("any") || correctRoles.includes(u.role));
+  const match = units.find((u) => unitMatchesAnyRole(u, correctRoles));
   if (match) primary = match;
 
   state.stats.dispatched += 1;
@@ -3070,7 +3234,7 @@ function dispatchSelectedUnit() {
     state.stats.overtime += 1;
   }
 
-  const correctRole = !isTrote && (correctRoles.includes(primary.role) || correctRoles.includes("any"));
+  const correctRole = !isTrote && unitMatchesAnyRole(primary, correctRoles);
 
   // Compute ETA and lateness relative to remaining TTL at dispatch time
   const etaPrimary = computeEtaForUnit(primary, c, severityNow);
@@ -3532,13 +3696,9 @@ function computeEtaForUnit(unit, call, severityNow) {
   function init() {
     bindDynamicUI();
 
-    // Show build info in header (helps verify updates on GitHub Pages/Vercel)
-    const buildEl = document.getElementById("buildInfo");
-    if (buildEl) buildEl.textContent = BUILD_TEXT;
-    const projectStatusEl = document.getElementById("projectStatus");
-    if (projectStatusEl) {
-      projectStatusEl.innerHTML = `<b>Versão:</b> ${BUILD.version} • <b>Stage:</b> ${BUILD.stage}<br><b>Build:</b> ${BUILD.builtAt}<br><b>Conclusão estimada:</b> ${PROJECT.completion}%<br><b>Foco:</b> ${PROJECT.focus}`;
-    }
+    // Regra-mãe: build sempre visível e centralizada em build-info.json
+    updateBuildUI(BUILD_META);
+    loadBuildMeta();
 
     // Stage 5: load optional DLC packs (non-blocking)
     tryLoadDlcPacks();

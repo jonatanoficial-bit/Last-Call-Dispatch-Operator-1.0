@@ -1,13 +1,17 @@
 {
   "game": "Last Call Dispatch Operator",
-  "version": "1.3.0",
-  "stage": "Phase 4",
-  "built_at": "2026-03-07 10:30:00 UTC",
-  "completion_percent": 74,
-  "focus": "mapa operacional, painel de resposta e rotas visuais de despacho",
+  "version": "1.4.0",
+  "stage": "Phase 5A",
+  "built_at": "2026-04-16 19:47:01 BRT",
+  "built_at_utc": "2026-04-16 22:47:01 UTC",
+  "completion_percent": 78,
+  "focus": "governança de build, roster internacional base, correção de despacho por papéis e pass mobile-first",
+  "release_channel": "mainline",
+  "tag": "launch-roster-mobile-governance-pass",
   "notes": [
-    "painel Sistema de Resposta com ETAs e disponibilidade",
-    "rotas visuais no mapa para unidades em deslocamento",
-    "cache-busting dos arquivos principais para GitHub Pages e Vercel"
+    "build-info.json passa a ser a referência central de versão e timestamp",
+    "roster inicial expandido para São Paulo, Rio, New York City, Tokyo, Rome e Berlin",
+    "papéis de despacho agora usam compatibilidade entre unidade e ocorrência",
+    "ajustes mobile-first no header, HUD, mapa e selo fixo de build"
   ]
 }

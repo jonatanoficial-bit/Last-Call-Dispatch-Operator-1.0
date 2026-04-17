@@ -1,13 +1,20 @@
-# Changelog da Build 1.1.1 / Stage 8B
+# Changelog da Build 1.4.0 / Phase 5A
 
-**Build:** 2026-03-06 09:33:52 BRT  
-**Conclusão estimada:** 56%
+**Build:** 2026-04-16 19:47:01 BRT  
+**Conclusão estimada:** 78%
 
-## Correções desta build
-- Corrigido o botão secundário **Iniciar Turno** (`btnStartShift2`), que estava sem ação.
-- Corrigido o botão secundário **Encerrar Turno** (`btnEndShift2`), que também não estava ligado ao fluxo principal.
-- Melhorado o feedback do botão **Atender próxima**, mostrando mensagens no log quando o turno não está ativo, já existe chamada ativa ou a fila ainda está vazia.
-- Atualizado versionamento, build e arquivos de status do projeto.
+## Correções e upgrades desta build
+- `build-info.json` virou a fonte principal de versão, timestamp e progresso do projeto.
+- Adicionado **selo fixo de build** na interface para garantir rastreabilidade visual em qualquer tela.
+- Corrigido o motor de despacho para considerar **compatibilidade entre unidade e tipo de ocorrência**, resolvendo erros de avaliação em chamadas de patrulha, tática, investigação, tráfego e resgate.
+- Catálogo de cidades reorganizado para o escopo inicial comercial: **São Paulo, Rio, New York City, Tokyo, Rome e Berlin** liberadas no início.
+- Unidades por cidade/agência agora são carregadas do catálogo canônico `data/cities.js`, reduzindo divergência entre design e runtime.
+- Pass mobile-first aplicado no topo da interface, HUD, botões e mapa.
 
 ## Impacto
-Essa correção resolve o principal bloqueio operacional reportado: entrar no plantão pela área de operação e não conseguir realmente iniciar o turno, o que fazia parecer que o botão de atender chamadas não funcionava.
+Esta build destrava a base comercial do projeto em três frentes: governança de build, coerência operacional do despacho e apresentação internacional inicial com melhor leitura em mobile.
+
+## Próximo bloco recomendado
+- adicionar casos exclusivos por cidade/país;
+- criar briefing/debriefing premium com KPIs e replay textual;
+- estruturar analytics, save migration e pacote de DLCs por região.

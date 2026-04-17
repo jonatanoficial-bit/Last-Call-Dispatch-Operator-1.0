@@ -1,170 +1,1252 @@
 // data/cities.js
-// NUNCA renomeie para Cities.js (GitHub Pages diferencia maiúsculas).
+// Catálogo canônico de cidades jogáveis e unidades por agência.
 window.CITIES = [
   {
-    id: "br_sp",
-    name: "🇧🇷 São Paulo (Simulação)",
-    country: "BR",
-    greetingPolice: "190, Polícia Militar. Qual sua emergência?",
-    greetingFire: "193, Bombeiros. Qual sua emergência?",
-    units: {
-      police: [
-        { id: "sp_pm_area", name: "PM Área (VTR)", role: "patrol" },
-        { id: "sp_rota", name: "ROTA", role: "tactical" },
-        { id: "sp_choque", name: "Choque", role: "riot" },
-        { id: "sp_gate", name: "GATE (Antibomba)", role: "bomb" },
-        { id: "sp_aguia", name: "Águia (Helicóptero)", role: "air" },
-        { id: "sp_civil", name: "Polícia Civil (Investigação)", role: "investigation" }
+    "id": "br_sp",
+    "name": "São Paulo",
+    "country": "BR",
+    "region": "São Paulo",
+    "greetingPolice": "190, Polícia Militar. Qual sua emergência?",
+    "greetingFire": "193, Corpo de Bombeiros. Qual é o endereço da ocorrência?",
+    "greetingAmbulance": "192, SAMU. Qual é a emergência médica?",
+    "emergencyNumbers": {
+      "police": "190",
+      "fire": "193",
+      "ambulance": "192"
+    },
+    "units": {
+      "police": [
+        {
+          "id": "sp_patrol_1",
+          "name": "Patrulha de Área (VTR)",
+          "role": "area_patrol",
+          "matchRoles": [
+            "patrol",
+            "traffic"
+          ]
+        },
+        {
+          "id": "sp_rota_1",
+          "name": "R.O.T.A.",
+          "role": "tactical_rota",
+          "matchRoles": [
+            "tactical"
+          ]
+        },
+        {
+          "id": "sp_choque_1",
+          "name": "Choque",
+          "role": "shock_riot",
+          "matchRoles": [
+            "tactical"
+          ]
+        },
+        {
+          "id": "sp_gate_1",
+          "name": "G.A.T.E.",
+          "role": "bomb_gate",
+          "matchRoles": [
+            "tactical"
+          ]
+        },
+        {
+          "id": "sp_aguia_1",
+          "name": "Águia",
+          "role": "air_eagle",
+          "matchRoles": [
+            "air_eagle"
+          ]
+        },
+        {
+          "id": "sp_civil_1",
+          "name": "Polícia Civil / Investigação",
+          "role": "civil_investigation",
+          "matchRoles": [
+            "investigation"
+          ]
+        }
       ],
-      fire: [
-        { id: "sp_ab", name: "Auto Bomba (AB)", role: "fire" },
-        { id: "sp_ar", name: "Auto Resgate (AR)", role: "rescue" },
-        { id: "sp_usa", name: "USA (Ambulância)", role: "ems" },
-        { id: "sp_salv", name: "Salvamento", role: "special_rescue" },
-        { id: "sp_haz", name: "Produtos Perigosos", role: "hazmat" }
+      "fire": [
+        {
+          "id": "sp_ab_1",
+          "name": "Auto Bomba",
+          "role": "fire_engine",
+          "matchRoles": [
+            "fire_engine"
+          ]
+        },
+        {
+          "id": "sp_ae_1",
+          "name": "Auto Escada",
+          "role": "ladder_truck",
+          "matchRoles": [
+            "fire_engine",
+            "rescue"
+          ]
+        },
+        {
+          "id": "sp_ur_1",
+          "name": "Unidade de Resgate (UR)",
+          "role": "fire_rescue",
+          "matchRoles": [
+            "fire_rescue",
+            "rescue"
+          ]
+        },
+        {
+          "id": "sp_salv_1",
+          "name": "Salvamento",
+          "role": "fire_rescue",
+          "matchRoles": [
+            "fire_rescue",
+            "rescue"
+          ]
+        },
+        {
+          "id": "sp_haz_1",
+          "name": "Produtos Perigosos",
+          "role": "hazmat",
+          "matchRoles": [
+            "hazmat"
+          ]
+        }
+      ],
+      "ambulance": [
+        {
+          "id": "sp_usb_1",
+          "name": "SAMU USB",
+          "role": "medic_ambulance",
+          "matchRoles": [
+            "medic_ambulance"
+          ]
+        },
+        {
+          "id": "sp_usa_1",
+          "name": "SAMU USA",
+          "role": "medic_ambulance",
+          "matchRoles": [
+            "medic_ambulance"
+          ]
+        },
+        {
+          "id": "sp_moto_1",
+          "name": "Motolância",
+          "role": "medic_ambulance",
+          "matchRoles": [
+            "medic_ambulance"
+          ]
+        },
+        {
+          "id": "sp_aero_1",
+          "name": "Aeromédico",
+          "role": "air_eagle",
+          "matchRoles": [
+            "air_eagle"
+          ]
+        }
       ]
     }
   },
-
   {
-    id: "br_df",
-    name: "🇧🇷 Brasília (DF)",
-    country: "BR",
-    greetingPolice: "190, Polícia Militar do DF. Qual sua emergência?",
-    greetingFire: "193, Corpo de Bombeiros do DF. Qual sua emergência?",
-    units: {
-      police: [
-        { id: "df_pm_area", name: "PMDF Área (VTR)", role: "patrol" },
-        { id: "df_bopec", name: "BOPE (Operações Especiais)", role: "tactical" },
-        { id: "df_aereo", name: "Apoio Aéreo", role: "air" }
+    "id": "br_rj",
+    "name": "Rio de Janeiro",
+    "country": "BR",
+    "region": "Rio de Janeiro",
+    "greetingPolice": "190, Polícia Militar. Informe a emergência e o local.",
+    "greetingFire": "193, Corpo de Bombeiros. Qual é o endereço da ocorrência?",
+    "greetingAmbulance": "192, SAMU. Qual é a emergência médica e o endereço?",
+    "emergencyNumbers": {
+      "police": "190",
+      "fire": "193",
+      "ambulance": "192"
+    },
+    "units": {
+      "police": [
+        {
+          "id": "rj_patrol_1",
+          "name": "Patrulha de Área",
+          "role": "area_patrol",
+          "matchRoles": [
+            "patrol",
+            "traffic"
+          ]
+        },
+        {
+          "id": "rj_bope_1",
+          "name": "BOPE",
+          "role": "tactical_rota",
+          "matchRoles": [
+            "tactical"
+          ]
+        },
+        {
+          "id": "rj_bpchq_1",
+          "name": "BPChq / Choque",
+          "role": "shock_riot",
+          "matchRoles": [
+            "tactical"
+          ]
+        },
+        {
+          "id": "rj_bomb_1",
+          "name": "Esquadrão Antibomba",
+          "role": "bomb_gate",
+          "matchRoles": [
+            "tactical"
+          ]
+        },
+        {
+          "id": "rj_gam_1",
+          "name": "GAM (Aéreo)",
+          "role": "air_eagle",
+          "matchRoles": [
+            "air_eagle"
+          ]
+        },
+        {
+          "id": "rj_core_1",
+          "name": "CORE / Investigação",
+          "role": "civil_investigation",
+          "matchRoles": [
+            "investigation"
+          ]
+        }
       ],
-      fire: [
-        { id: "df_ab", name: "AB (Auto Bomba)", role: "fire" },
-        { id: "df_resg", name: "Resgate", role: "rescue" },
-        { id: "df_amb", name: "Ambulância", role: "ems" }
+      "fire": [
+        {
+          "id": "rj_abt_1",
+          "name": "Auto Bomba Tanque",
+          "role": "fire_engine",
+          "matchRoles": [
+            "fire_engine"
+          ]
+        },
+        {
+          "id": "rj_aem_1",
+          "name": "Auto Escada Mecânica",
+          "role": "ladder_truck",
+          "matchRoles": [
+            "fire_engine",
+            "rescue"
+          ]
+        },
+        {
+          "id": "rj_rescue_1",
+          "name": "Busca e Salvamento",
+          "role": "fire_rescue",
+          "matchRoles": [
+            "fire_rescue",
+            "rescue"
+          ]
+        },
+        {
+          "id": "rj_mar_1",
+          "name": "Salvamento Especial",
+          "role": "fire_rescue",
+          "matchRoles": [
+            "fire_rescue",
+            "rescue"
+          ]
+        },
+        {
+          "id": "rj_haz_1",
+          "name": "Produtos Perigosos",
+          "role": "hazmat",
+          "matchRoles": [
+            "hazmat"
+          ]
+        }
+      ],
+      "ambulance": [
+        {
+          "id": "rj_usb_1",
+          "name": "SAMU USB",
+          "role": "medic_ambulance",
+          "matchRoles": [
+            "medic_ambulance"
+          ]
+        },
+        {
+          "id": "rj_usa_1",
+          "name": "SAMU USA",
+          "role": "medic_ambulance",
+          "matchRoles": [
+            "medic_ambulance"
+          ]
+        },
+        {
+          "id": "rj_moto_1",
+          "name": "Motolância",
+          "role": "medic_ambulance",
+          "matchRoles": [
+            "medic_ambulance"
+          ]
+        },
+        {
+          "id": "rj_aero_1",
+          "name": "Apoio Aeromédico",
+          "role": "air_eagle",
+          "matchRoles": [
+            "air_eagle"
+          ]
+        }
       ]
     }
   },
-
   {
-    id: "us_nyc",
-    name: "🇺🇸 New York (911)",
-    country: "US",
-    greetingPolice: "911, what's your emergency?",
-    greetingFire: "911, fire/EMS. What's the address of the emergency?",
-    units: {
-      police: [
-        { id: "ny_patrol", name: "NYPD Patrol", role: "patrol" },
-        { id: "ny_esu", name: "NYPD ESU", role: "tactical" },
-        { id: "ny_k9", name: "NYPD K9", role: "k9" },
-        { id: "ny_bomb", name: "Bomb Squad", role: "bomb" },
-        { id: "ny_heli", name: "Aviation Unit", role: "air" },
-        { id: "ny_fbi", name: "FBI Liaison", role: "federal" }
+    "id": "us_nyc",
+    "name": "New York City",
+    "country": "US",
+    "region": "New York",
+    "greetingPolice": "911, police. What is your emergency?",
+    "greetingFire": "911, fire department. What is the exact address of the emergency?",
+    "greetingAmbulance": "911, EMS. Tell me the exact address and patient condition.",
+    "emergencyNumbers": {
+      "police": "911",
+      "fire": "911",
+      "ambulance": "911"
+    },
+    "units": {
+      "police": [
+        {
+          "id": "ny_patrol_1",
+          "name": "NYPD Patrol",
+          "role": "area_patrol",
+          "matchRoles": [
+            "patrol",
+            "traffic"
+          ]
+        },
+        {
+          "id": "ny_esu_1",
+          "name": "NYPD ESU",
+          "role": "tactical_rota",
+          "matchRoles": [
+            "tactical"
+          ]
+        },
+        {
+          "id": "ny_bomb_1",
+          "name": "Bomb Squad",
+          "role": "bomb_gate",
+          "matchRoles": [
+            "tactical"
+          ]
+        },
+        {
+          "id": "ny_air_1",
+          "name": "Aviation Unit",
+          "role": "air_eagle",
+          "matchRoles": [
+            "air_eagle"
+          ]
+        },
+        {
+          "id": "ny_detective_1",
+          "name": "Detective Bureau",
+          "role": "civil_investigation",
+          "matchRoles": [
+            "investigation"
+          ]
+        },
+        {
+          "id": "ny_fbi_1",
+          "name": "FBI Liaison",
+          "role": "civil_investigation",
+          "matchRoles": [
+            "investigation",
+            "tactical"
+          ]
+        }
       ],
-      fire: [
-        { id: "fd_engine", name: "FDNY Engine", role: "fire" },
-        { id: "fd_ladder", name: "FDNY Ladder", role: "fire_support" },
-        { id: "fd_rescue", name: "FDNY Rescue", role: "special_rescue" },
-        { id: "fd_haz", name: "FDNY HazMat", role: "hazmat" },
-        { id: "fd_ems", name: "FDNY EMS Ambulance", role: "ems" }
+      "fire": [
+        {
+          "id": "ny_engine_1",
+          "name": "FDNY Engine",
+          "role": "fire_engine",
+          "matchRoles": [
+            "fire_engine"
+          ]
+        },
+        {
+          "id": "ny_ladder_1",
+          "name": "FDNY Ladder",
+          "role": "ladder_truck",
+          "matchRoles": [
+            "fire_engine",
+            "rescue"
+          ]
+        },
+        {
+          "id": "ny_rescue_1",
+          "name": "FDNY Rescue",
+          "role": "fire_rescue",
+          "matchRoles": [
+            "fire_rescue",
+            "rescue"
+          ]
+        },
+        {
+          "id": "ny_haz_1",
+          "name": "FDNY HazMat",
+          "role": "hazmat",
+          "matchRoles": [
+            "hazmat"
+          ]
+        },
+        {
+          "id": "ny_medic_1",
+          "name": "EMS Support",
+          "role": "medic_ambulance",
+          "matchRoles": [
+            "medic_ambulance"
+          ]
+        }
+      ],
+      "ambulance": [
+        {
+          "id": "ny_bls_1",
+          "name": "BLS Ambulance",
+          "role": "medic_ambulance",
+          "matchRoles": [
+            "medic_ambulance"
+          ]
+        },
+        {
+          "id": "ny_als_1",
+          "name": "ALS Paramedic Unit",
+          "role": "medic_ambulance",
+          "matchRoles": [
+            "medic_ambulance"
+          ]
+        },
+        {
+          "id": "ny_rescue_medic_1",
+          "name": "Rescue Medic",
+          "role": "fire_rescue",
+          "matchRoles": [
+            "rescue",
+            "fire_rescue"
+          ]
+        },
+        {
+          "id": "ny_airmed_1",
+          "name": "Air Ambulance",
+          "role": "air_eagle",
+          "matchRoles": [
+            "air_eagle"
+          ]
+        }
       ]
     }
   },
-
   {
-    id: "eu_ldn",
-    name: "🇪🇺 London (112/999)",
-    country: "EU",
-    greetingPolice: "999, police. What's your emergency?",
-    greetingFire: "999, fire and rescue. What's the address?",
-    units: {
-      police: [
-        { id: "ldn_patrol", name: "Met Police Response", role: "patrol" },
-        { id: "ldn_armed", name: "ARV (Armed Response)", role: "tactical" },
-        { id: "ldn_ct", name: "Counter Terror", role: "federal" }
+    "id": "jp_tokyo",
+    "name": "Tokyo",
+    "country": "JP",
+    "region": "Tokyo",
+    "greetingPolice": "110, police. What is your emergency?",
+    "greetingFire": "119, fire department. What is the emergency location?",
+    "greetingAmbulance": "119, ambulance. Tell me the address and patient condition.",
+    "emergencyNumbers": {
+      "police": "110",
+      "fire": "119",
+      "ambulance": "119"
+    },
+    "units": {
+      "police": [
+        {
+          "id": "tk_koban_1",
+          "name": "Koban Patrol",
+          "role": "area_patrol",
+          "matchRoles": [
+            "patrol",
+            "traffic"
+          ]
+        },
+        {
+          "id": "tk_kidotai_1",
+          "name": "Kidotai",
+          "role": "shock_riot",
+          "matchRoles": [
+            "tactical"
+          ]
+        },
+        {
+          "id": "tk_sat_1",
+          "name": "SAT",
+          "role": "tactical_rota",
+          "matchRoles": [
+            "tactical"
+          ]
+        },
+        {
+          "id": "tk_bomb_1",
+          "name": "EOD Team",
+          "role": "bomb_gate",
+          "matchRoles": [
+            "tactical"
+          ]
+        },
+        {
+          "id": "tk_air_1",
+          "name": "Police Helicopter",
+          "role": "air_eagle",
+          "matchRoles": [
+            "air_eagle"
+          ]
+        },
+        {
+          "id": "tk_invest_1",
+          "name": "Special Investigation Team",
+          "role": "civil_investigation",
+          "matchRoles": [
+            "investigation"
+          ]
+        }
       ],
-      fire: [
-        { id: "ldn_pump", name: "Fire Engine (Pump)", role: "fire" },
-        { id: "ldn_rescue", name: "Urban Search & Rescue", role: "special_rescue" },
-        { id: "ldn_ems", name: "Ambulance", role: "ems" }
+      "fire": [
+        {
+          "id": "tk_engine_1",
+          "name": "Fire Engine",
+          "role": "fire_engine",
+          "matchRoles": [
+            "fire_engine"
+          ]
+        },
+        {
+          "id": "tk_ladder_1",
+          "name": "Ladder Truck",
+          "role": "ladder_truck",
+          "matchRoles": [
+            "fire_engine",
+            "rescue"
+          ]
+        },
+        {
+          "id": "tk_rescue_1",
+          "name": "Rescue Unit",
+          "role": "fire_rescue",
+          "matchRoles": [
+            "fire_rescue",
+            "rescue"
+          ]
+        },
+        {
+          "id": "tk_haz_1",
+          "name": "HazMat Response",
+          "role": "hazmat",
+          "matchRoles": [
+            "hazmat"
+          ]
+        },
+        {
+          "id": "tk_medic_1",
+          "name": "Emergency Support",
+          "role": "medic_ambulance",
+          "matchRoles": [
+            "medic_ambulance"
+          ]
+        }
+      ],
+      "ambulance": [
+        {
+          "id": "tk_amb_1",
+          "name": "Ambulance",
+          "role": "medic_ambulance",
+          "matchRoles": [
+            "medic_ambulance"
+          ]
+        },
+        {
+          "id": "tk_critical_1",
+          "name": "Critical Care Unit",
+          "role": "medic_ambulance",
+          "matchRoles": [
+            "medic_ambulance"
+          ]
+        },
+        {
+          "id": "tk_rescue_medic_1",
+          "name": "Rescue Medic",
+          "role": "fire_rescue",
+          "matchRoles": [
+            "rescue",
+            "fire_rescue"
+          ]
+        },
+        {
+          "id": "tk_heli_1",
+          "name": "Medical Helicopter",
+          "role": "air_eagle",
+          "matchRoles": [
+            "air_eagle"
+          ]
+        }
       ]
     }
   },
-
   {
-    id: "jp_tokyo",
-    name: "🇯🇵 Tokyo (110/119)",
-    country: "JP",
-    greetingPolice: "110, police. What is your emergency?",
-    greetingFire: "119, fire/ambulance. What is the address?",
-    units: {
-      police: [
-        { id: "tk_patrol", name: "Kōban Patrol", role: "patrol" },
-        { id: "tk_sit", name: "Special Investigation Team", role: "investigation" },
-        { id: "tk_tactical", name: "Tactical Unit", role: "tactical" }
+    "id": "it_rom",
+    "name": "Rome",
+    "country": "IT",
+    "region": "Lazio",
+    "greetingPolice": "112, Polizia. Qual è l'emergenza?",
+    "greetingFire": "115, Vigili del Fuoco. Qual è l'indirizzo dell'emergenza?",
+    "greetingAmbulance": "118, emergenza sanitaria. Qual è l'indirizzo e la condizione del paziente?",
+    "emergencyNumbers": {
+      "police": "112",
+      "fire": "115",
+      "ambulance": "118"
+    },
+    "units": {
+      "police": [
+        {
+          "id": "rm_volante_1",
+          "name": "Volante",
+          "role": "area_patrol",
+          "matchRoles": [
+            "patrol",
+            "traffic"
+          ]
+        },
+        {
+          "id": "rm_uopi_1",
+          "name": "UOPI",
+          "role": "tactical_rota",
+          "matchRoles": [
+            "tactical"
+          ]
+        },
+        {
+          "id": "rm_mobile_1",
+          "name": "Reparto Mobile",
+          "role": "shock_riot",
+          "matchRoles": [
+            "tactical"
+          ]
+        },
+        {
+          "id": "rm_bomb_1",
+          "name": "Artificieri",
+          "role": "bomb_gate",
+          "matchRoles": [
+            "tactical"
+          ]
+        },
+        {
+          "id": "rm_air_1",
+          "name": "Reparto Volo",
+          "role": "air_eagle",
+          "matchRoles": [
+            "air_eagle"
+          ]
+        },
+        {
+          "id": "rm_mobile_invest_1",
+          "name": "Squadra Mobile",
+          "role": "civil_investigation",
+          "matchRoles": [
+            "investigation"
+          ]
+        }
       ],
-      fire: [
-        { id: "tk_engine", name: "Fire Engine", role: "fire" },
-        { id: "tk_rescue", name: "Rescue Unit", role: "rescue" },
-        { id: "tk_amb", name: "Ambulance", role: "ems" }
+      "fire": [
+        {
+          "id": "rm_aps_1",
+          "name": "APS / Autopompa",
+          "role": "fire_engine",
+          "matchRoles": [
+            "fire_engine"
+          ]
+        },
+        {
+          "id": "rm_scale_1",
+          "name": "Autoscala",
+          "role": "ladder_truck",
+          "matchRoles": [
+            "fire_engine",
+            "rescue"
+          ]
+        },
+        {
+          "id": "rm_usar_1",
+          "name": "USAR",
+          "role": "fire_rescue",
+          "matchRoles": [
+            "fire_rescue",
+            "rescue"
+          ]
+        },
+        {
+          "id": "rm_nbcr_1",
+          "name": "NBCR",
+          "role": "hazmat",
+          "matchRoles": [
+            "hazmat"
+          ]
+        },
+        {
+          "id": "rm_support_1",
+          "name": "Supporto Sanitario",
+          "role": "medic_ambulance",
+          "matchRoles": [
+            "medic_ambulance"
+          ]
+        }
+      ],
+      "ambulance": [
+        {
+          "id": "rm_118_1",
+          "name": "Ambulanza 118",
+          "role": "medic_ambulance",
+          "matchRoles": [
+            "medic_ambulance"
+          ]
+        },
+        {
+          "id": "rm_auto_1",
+          "name": "Automedica",
+          "role": "medic_ambulance",
+          "matchRoles": [
+            "medic_ambulance"
+          ]
+        },
+        {
+          "id": "rm_rescue_medic_1",
+          "name": "Soccorso Avanzato",
+          "role": "fire_rescue",
+          "matchRoles": [
+            "rescue",
+            "fire_rescue"
+          ]
+        },
+        {
+          "id": "rm_eli_1",
+          "name": "Elisoccorso",
+          "role": "air_eagle",
+          "matchRoles": [
+            "air_eagle"
+          ]
+        }
       ]
     }
   },
-
   {
-    id: "au_syd",
-    name: "🇦🇺 Sydney (000)",
-    country: "AU",
-    greetingPolice: "000, do you need Police, Fire or Ambulance?",
-    greetingFire: "000, Fire and Rescue. What's the location?",
-    units: {
-      police: [
-        { id: "au_patrol", name: "NSW Police (General Duties)", role: "patrol" },
-        { id: "au_sog", name: "SOG (Tactical)", role: "tactical" }
+    "id": "de_ber",
+    "name": "Berlin",
+    "country": "DE",
+    "region": "Berlin",
+    "greetingPolice": "110, Polizei. Wo ist der Notfall?",
+    "greetingFire": "112, Feuerwehr. Was ist die genaue Einsatzadresse?",
+    "greetingAmbulance": "112, Rettungsdienst. Wo befindet sich der Patient?",
+    "emergencyNumbers": {
+      "police": "110",
+      "fire": "112",
+      "ambulance": "112"
+    },
+    "units": {
+      "police": [
+        {
+          "id": "ber_patrol_1",
+          "name": "Streifenwagen",
+          "role": "area_patrol",
+          "matchRoles": [
+            "patrol",
+            "traffic"
+          ]
+        },
+        {
+          "id": "ber_sek_1",
+          "name": "SEK",
+          "role": "tactical_rota",
+          "matchRoles": [
+            "tactical"
+          ]
+        },
+        {
+          "id": "ber_bepo_1",
+          "name": "Bereitschaftspolizei",
+          "role": "shock_riot",
+          "matchRoles": [
+            "tactical"
+          ]
+        },
+        {
+          "id": "ber_eod_1",
+          "name": "Entschärfer",
+          "role": "bomb_gate",
+          "matchRoles": [
+            "tactical"
+          ]
+        },
+        {
+          "id": "ber_air_1",
+          "name": "Polizeihubschrauber",
+          "role": "air_eagle",
+          "matchRoles": [
+            "air_eagle"
+          ]
+        },
+        {
+          "id": "ber_kripo_1",
+          "name": "Kriminalpolizei",
+          "role": "civil_investigation",
+          "matchRoles": [
+            "investigation"
+          ]
+        }
       ],
-      fire: [
-        { id: "au_engine", name: "Fire & Rescue Engine", role: "fire" },
-        { id: "au_rescue", name: "Rescue", role: "rescue" },
-        { id: "au_amb", name: "Ambulance", role: "ems" }
+      "fire": [
+        {
+          "id": "ber_lf_1",
+          "name": "Löschfahrzeug",
+          "role": "fire_engine",
+          "matchRoles": [
+            "fire_engine"
+          ]
+        },
+        {
+          "id": "ber_dl_1",
+          "name": "Drehleiter",
+          "role": "ladder_truck",
+          "matchRoles": [
+            "fire_engine",
+            "rescue"
+          ]
+        },
+        {
+          "id": "ber_rw_1",
+          "name": "Rüstwagen",
+          "role": "fire_rescue",
+          "matchRoles": [
+            "fire_rescue",
+            "rescue"
+          ]
+        },
+        {
+          "id": "ber_haz_1",
+          "name": "Gefahrgutzug",
+          "role": "hazmat",
+          "matchRoles": [
+            "hazmat"
+          ]
+        },
+        {
+          "id": "ber_medic_support_1",
+          "name": "Notfallhilfe",
+          "role": "medic_ambulance",
+          "matchRoles": [
+            "medic_ambulance"
+          ]
+        }
+      ],
+      "ambulance": [
+        {
+          "id": "ber_rtw_1",
+          "name": "RTW",
+          "role": "medic_ambulance",
+          "matchRoles": [
+            "medic_ambulance"
+          ]
+        },
+        {
+          "id": "ber_nef_1",
+          "name": "NEF",
+          "role": "medic_ambulance",
+          "matchRoles": [
+            "medic_ambulance"
+          ]
+        },
+        {
+          "id": "ber_rescue_medic_1",
+          "name": "Rettungswagen Plus",
+          "role": "fire_rescue",
+          "matchRoles": [
+            "rescue",
+            "fire_rescue"
+          ]
+        },
+        {
+          "id": "ber_rth_1",
+          "name": "Rettungshubschrauber",
+          "role": "air_eagle",
+          "matchRoles": [
+            "air_eagle"
+          ]
+        }
       ]
     }
   },
-
   {
-    id: "za_jhb",
-    name: "🇿🇦 Johannesburg (112/10111)",
-    country: "ZA",
-    greetingPolice: "10111, police. What is your emergency?",
-    greetingFire: "Emergency services. What is the location?",
-    units: {
-      police: [
-        { id: "za_patrol", name: "SAPS Patrol", role: "patrol" },
-        { id: "za_tactical", name: "Tactical Response", role: "tactical" }
+    "id": "br_df",
+    "name": "Brasília",
+    "country": "BR",
+    "region": "Distrito Federal",
+    "greetingPolice": "190, Polícia Militar do Distrito Federal. Qual sua emergência?",
+    "greetingFire": "193, Corpo de Bombeiros. Qual é o endereço da ocorrência?",
+    "greetingAmbulance": "192, SAMU. Qual é a emergência médica?",
+    "emergencyNumbers": {
+      "police": "190",
+      "fire": "193",
+      "ambulance": "192"
+    },
+    "units": {
+      "police": [
+        {
+          "id": "df_patrol_1",
+          "name": "PMDF Área",
+          "role": "area_patrol",
+          "matchRoles": [
+            "patrol",
+            "traffic"
+          ]
+        },
+        {
+          "id": "df_bope_1",
+          "name": "BOPE",
+          "role": "tactical_rota",
+          "matchRoles": [
+            "tactical"
+          ]
+        },
+        {
+          "id": "df_air_1",
+          "name": "Apoio Aéreo",
+          "role": "air_eagle",
+          "matchRoles": [
+            "air_eagle"
+          ]
+        },
+        {
+          "id": "df_pc_1",
+          "name": "Polícia Civil",
+          "role": "civil_investigation",
+          "matchRoles": [
+            "investigation"
+          ]
+        }
       ],
-      fire: [
-        { id: "za_engine", name: "Fire Engine", role: "fire" },
-        { id: "za_ems", name: "Ambulance", role: "ems" },
-        { id: "za_rescue", name: "Rescue", role: "rescue" }
+      "fire": [
+        {
+          "id": "df_ab_1",
+          "name": "Auto Bomba",
+          "role": "fire_engine",
+          "matchRoles": [
+            "fire_engine"
+          ]
+        },
+        {
+          "id": "df_rescue_1",
+          "name": "Resgate",
+          "role": "fire_rescue",
+          "matchRoles": [
+            "fire_rescue",
+            "rescue"
+          ]
+        },
+        {
+          "id": "df_haz_1",
+          "name": "HazMat",
+          "role": "hazmat",
+          "matchRoles": [
+            "hazmat"
+          ]
+        }
+      ],
+      "ambulance": [
+        {
+          "id": "df_usb_1",
+          "name": "USB",
+          "role": "medic_ambulance",
+          "matchRoles": [
+            "medic_ambulance"
+          ]
+        },
+        {
+          "id": "df_usa_1",
+          "name": "USA",
+          "role": "medic_ambulance",
+          "matchRoles": [
+            "medic_ambulance"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "eu_ldn",
+    "name": "London",
+    "country": "UK",
+    "region": "England",
+    "greetingPolice": "999, police. What is your emergency?",
+    "greetingFire": "999, fire and rescue. What is the address?",
+    "greetingAmbulance": "999, ambulance service. What is the address and patient condition?",
+    "emergencyNumbers": {
+      "police": "999",
+      "fire": "999",
+      "ambulance": "999"
+    },
+    "units": {
+      "police": [
+        {
+          "id": "ldn_patrol_1",
+          "name": "Met Police Response",
+          "role": "area_patrol",
+          "matchRoles": [
+            "patrol",
+            "traffic"
+          ]
+        },
+        {
+          "id": "ldn_armed_1",
+          "name": "ARV",
+          "role": "tactical_rota",
+          "matchRoles": [
+            "tactical"
+          ]
+        },
+        {
+          "id": "ldn_ct_1",
+          "name": "Counter Terror",
+          "role": "civil_investigation",
+          "matchRoles": [
+            "investigation",
+            "tactical"
+          ]
+        },
+        {
+          "id": "ldn_air_1",
+          "name": "Air Support",
+          "role": "air_eagle",
+          "matchRoles": [
+            "air_eagle"
+          ]
+        }
+      ],
+      "fire": [
+        {
+          "id": "ldn_pump_1",
+          "name": "Pump Appliance",
+          "role": "fire_engine",
+          "matchRoles": [
+            "fire_engine"
+          ]
+        },
+        {
+          "id": "ldn_ladder_1",
+          "name": "Ladder",
+          "role": "ladder_truck",
+          "matchRoles": [
+            "fire_engine",
+            "rescue"
+          ]
+        },
+        {
+          "id": "ldn_urban_1",
+          "name": "Urban Search & Rescue",
+          "role": "fire_rescue",
+          "matchRoles": [
+            "fire_rescue",
+            "rescue"
+          ]
+        }
+      ],
+      "ambulance": [
+        {
+          "id": "ldn_amb_1",
+          "name": "Ambulance",
+          "role": "medic_ambulance",
+          "matchRoles": [
+            "medic_ambulance"
+          ]
+        },
+        {
+          "id": "ldn_critical_1",
+          "name": "Critical Care Car",
+          "role": "medic_ambulance",
+          "matchRoles": [
+            "medic_ambulance"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "us_la",
+    "name": "Los Angeles",
+    "country": "US",
+    "region": "California",
+    "greetingPolice": "911, police. What is your emergency?",
+    "greetingFire": "911, fire department. What is the emergency address?",
+    "greetingAmbulance": "911, EMS. What is the patient location and condition?",
+    "emergencyNumbers": {
+      "police": "911",
+      "fire": "911",
+      "ambulance": "911"
+    },
+    "units": {
+      "police": [
+        {
+          "id": "la_patrol_1",
+          "name": "LAPD Patrol",
+          "role": "area_patrol",
+          "matchRoles": [
+            "patrol",
+            "traffic"
+          ]
+        },
+        {
+          "id": "la_swat_1",
+          "name": "SWAT",
+          "role": "tactical_rota",
+          "matchRoles": [
+            "tactical"
+          ]
+        },
+        {
+          "id": "la_air_1",
+          "name": "Air Support",
+          "role": "air_eagle",
+          "matchRoles": [
+            "air_eagle"
+          ]
+        },
+        {
+          "id": "la_detective_1",
+          "name": "Detectives",
+          "role": "civil_investigation",
+          "matchRoles": [
+            "investigation"
+          ]
+        }
+      ],
+      "fire": [
+        {
+          "id": "la_engine_1",
+          "name": "LAFD Engine",
+          "role": "fire_engine",
+          "matchRoles": [
+            "fire_engine"
+          ]
+        },
+        {
+          "id": "la_ladder_1",
+          "name": "Truck",
+          "role": "ladder_truck",
+          "matchRoles": [
+            "fire_engine",
+            "rescue"
+          ]
+        },
+        {
+          "id": "la_rescue_1",
+          "name": "Urban Search & Rescue",
+          "role": "fire_rescue",
+          "matchRoles": [
+            "fire_rescue",
+            "rescue"
+          ]
+        }
+      ],
+      "ambulance": [
+        {
+          "id": "la_als_1",
+          "name": "ALS Ambulance",
+          "role": "medic_ambulance",
+          "matchRoles": [
+            "medic_ambulance"
+          ]
+        },
+        {
+          "id": "la_airmed_1",
+          "name": "Air Ambulance",
+          "role": "air_eagle",
+          "matchRoles": [
+            "air_eagle"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "au_syd",
+    "name": "Sydney",
+    "country": "AU",
+    "region": "New South Wales",
+    "greetingPolice": "000, police. What is your emergency?",
+    "greetingFire": "000, fire and rescue. What is the address?",
+    "greetingAmbulance": "000, ambulance. What is the patient location and condition?",
+    "emergencyNumbers": {
+      "police": "000",
+      "fire": "000",
+      "ambulance": "000"
+    },
+    "units": {
+      "police": [
+        {
+          "id": "syd_patrol_1",
+          "name": "NSW Police General Duties",
+          "role": "area_patrol",
+          "matchRoles": [
+            "patrol",
+            "traffic"
+          ]
+        },
+        {
+          "id": "syd_tac_1",
+          "name": "TOU",
+          "role": "tactical_rota",
+          "matchRoles": [
+            "tactical"
+          ]
+        },
+        {
+          "id": "syd_air_1",
+          "name": "PolAir",
+          "role": "air_eagle",
+          "matchRoles": [
+            "air_eagle"
+          ]
+        }
+      ],
+      "fire": [
+        {
+          "id": "syd_engine_1",
+          "name": "Fire & Rescue Pump",
+          "role": "fire_engine",
+          "matchRoles": [
+            "fire_engine"
+          ]
+        },
+        {
+          "id": "syd_rescue_1",
+          "name": "Rescue",
+          "role": "fire_rescue",
+          "matchRoles": [
+            "fire_rescue",
+            "rescue"
+          ]
+        }
+      ],
+      "ambulance": [
+        {
+          "id": "syd_amb_1",
+          "name": "NSW Ambulance",
+          "role": "medic_ambulance",
+          "matchRoles": [
+            "medic_ambulance"
+          ]
+        },
+        {
+          "id": "syd_airmed_1",
+          "name": "Air Ambulance",
+          "role": "air_eagle",
+          "matchRoles": [
+            "air_eagle"
+          ]
+        }
       ]
     }
   }
 ];
-
-window.CITIES.push(
-  {
-    id: "br_rj",
-    name: "🇧🇷 Rio de Janeiro (190/192/193)",
-    country: "BR",
-    greetingPolice: "190, Polícia Militar. Qual sua emergência?",
-    greetingFire: "193, Bombeiros. Qual sua emergência?",
-    units: { police: [], fire: [] }
-  },
-  {
-    id: "us_la",
-    name: "🇺🇸 Los Angeles (911)",
-    country: "US",
-    greetingPolice: "911, what's your emergency?",
-    greetingFire: "911, fire/EMS. What's the address of the emergency?",
-    units: { police: [], fire: [] }
-  }
-);

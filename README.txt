@@ -1,11 +1,10 @@
 Last Call Dispatch Operator
-Build: 1.1.0 / Stage 8A
-Data/Hora: 2026-03-06 09:26:38 BRT
-Conclusão estimada: 54%
+Build: 1.4.0 / Phase 5A
+Data/Hora: 2026-04-16 19:47:01 BRT
+Conclusão estimada: 78%
 
 Resumo:
-- Base web estática compatível com GitHub Pages e Vercel.
-- Correções estruturais aplicadas no HTML e no script principal.
-- Agência médica separada adicionada: Ambulância / SAMU / EMS.
-- Novas ocorrências médicas adicionadas para Brasil e EUA.
-- Planejamento de evolução disponível em ROADMAP_ETAPAS.md.
+- build-info.json passou a ser a fonte central de versão/timestamp.
+- roster inicial expandido para BR, EUA, Japão, Itália e Alemanha.
+- correção de compatibilidade entre ocorrências e papéis das unidades.
+- ajustes mobile-first no HUD, topbar e selo fixo de build.

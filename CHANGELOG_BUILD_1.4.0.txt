@@ -1,0 +1,10 @@
+Build 1.4.0 / Phase 5A
+Build: 2026-04-16 19:47:01 BRT
+Conclusão estimada: 78%
+
+Entregas:
+- governança central de build via build-info.json;
+- selo fixo de build visível no jogo;
+- correção do despacho por compatibilidade de papéis;
+- roster inicial internacional (SP, RJ, NYC, Tokyo, Rome, Berlin);
+- ajustes mobile-first na interface.
