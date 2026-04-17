@@ -1,17 +1,11 @@
 {
   "game": "Last Call Dispatch Operator",
-  "version": "1.4.0",
-  "stage": "Phase 5A",
-  "built_at": "2026-04-16 19:47:01 BRT",
-  "built_at_utc": "2026-04-16 22:47:01 UTC",
-  "completion_percent": 78,
-  "focus": "governança de build, roster internacional base, correção de despacho por papéis e pass mobile-first",
+  "version": "1.4.1",
+  "stage": "Phase 5B",
+  "built_at": "2026-04-17 10:18:00 BRT",
+  "built_at_utc": "2026-04-17 13:18:00 UTC",
+  "completion_percent": 80,
+  "focus": "correção do diálogo incremental, despacho obrigatório estável e mobile-first portrait polish",
   "release_channel": "mainline",
-  "tag": "launch-roster-mobile-governance-pass",
-  "notes": [
-    "build-info.json passa a ser a referência central de versão e timestamp",
-    "roster inicial expandido para São Paulo, Rio, New York City, Tokyo, Rome e Berlin",
-    "papéis de despacho agora usam compatibilidade entre unidade e ocorrência",
-    "ajustes mobile-first no header, HUD, mapa e selo fixo de build"
-  ]
+  "tag": "dialog-dispatch-mobile-hotfix"
 }

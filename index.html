@@ -12,11 +12,11 @@
   <link rel="apple-touch-icon" href="./favicon.png" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <link id="appStyles" rel="stylesheet" href="styles.css?v=20260416-224701" />
+  <link id="appStyles" rel="stylesheet" href="styles.css?v=20260417-131800" />
   <style id="critical-screen-css">
     html, body { height: 100%; margin: 0; overflow: hidden !important; }
     .app { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-    main { position: relative; flex: 1; overflow: hidden; padding-top: 104px !important; }
+    main { position: relative; flex: 1; overflow: hidden; padding-top: 104px !important; min-height: 0; }
     .screen { display: none !important; position: absolute !important; inset: 0 !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch; opacity: 0; pointer-events: none; }
     .screen.active { display: block !important; opacity: 1 !important; pointer-events: auto !important; }
     .map { height: 320px; min-height: 320px; }
@@ -24,6 +24,20 @@
     .topNav, .hud, .brand { position: relative !important; z-index: 1000000 !important; pointer-events: auto !important; }
     .leaflet-container, #map, .mapWrap, .mapCard { z-index: 0 !important; }
     .leaflet-pane, .leaflet-control, .leaflet-top, .leaflet-bottom { z-index: 10 !important; }
+  
+    @media (max-width: 860px) {
+      html, body { overflow: hidden !important; }
+      .app { height: 100dvh; }
+      .topbar { top: 8px !important; width: calc(100% - 16px) !important; border-radius: 20px !important; }
+      main { padding-top: 220px !important; }
+      .screen { padding-bottom: calc(18px + env(safe-area-inset-bottom)); }
+    }
+    @media (max-width: 560px) {
+      .topbar { top: 6px !important; width: calc(100% - 12px) !important; }
+      main { padding-top: 246px !important; }
+      .map { height: 220px; min-height: 220px; }
+    }
+
   </style>
 </head>
 <body>

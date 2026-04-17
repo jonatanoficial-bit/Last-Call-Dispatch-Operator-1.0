@@ -1,3 +1,6 @@
+## Build Atual
+- 1.4.1 - Hotfix de diálogo, despacho e mobile portrait.
+
 # Roadmap de atualização — Last Call Dispatch Operator
 
 **Build:** 1.4.0 / Phase 5A  

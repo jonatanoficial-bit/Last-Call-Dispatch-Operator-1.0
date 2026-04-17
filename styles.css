@@ -588,3 +588,55 @@ main{
   .queue, .log{ max-height: 200px; }
   .buildDock{ left: 10px; right: 10px; max-width: none; }
 }
+
+
+/* Build 1.4.1 mobile/dispatch hotfix */
+button.isReady:not(:disabled){
+  opacity: 1;
+  filter: none;
+}
+button:disabled{
+  opacity: 0.58;
+}
+.callBox{
+  overflow-wrap: anywhere;
+}
+.select, button{
+  min-height: 48px;
+}
+@media (max-width: 860px){
+  html, body{ height: 100%; }
+  body{ overscroll-behavior: none; }
+  .app{ padding: 8px 8px calc(14px + env(safe-area-inset-bottom)); min-height: 100dvh; }
+  .screen{ padding-bottom: 20px; }
+  .card{ border-radius: 18px; }
+  .subCard, .summary, .callBox, .queue, .log{ border-radius: 16px; }
+  .topbar{ gap: 8px !important; }
+  .brand{ align-items: flex-start; }
+  .brandText{ min-width: 0; }
+  .title, .subtitle, .build{ overflow-wrap: anywhere; }
+  .topNav{ gap: 8px; }
+  .navBtn{ min-height: 46px; padding: 10px 8px; }
+  .hud{ gap: 8px; }
+  .hudItem{ min-height: 70px; }
+  .hudValue{ font-size: 22px; }
+  .grid{ gap: 10px; margin-top: 10px; }
+  .btnRow{ gap: 8px; }
+  .btnRow > *{ min-width: 0; }
+  .pills{ gap: 8px; }
+  .pill{ max-width: 100%; overflow-wrap: anywhere; }
+}
+@media (max-width: 560px){
+  .app{ padding-left: 6px; padding-right: 6px; }
+  .topbar{ padding: 10px !important; }
+  .brand{ gap: 10px; }
+  .logo{ width: 28px; height: 44px; border-radius: 14px; }
+  .brandText .title{ font-size: 14px; }
+  .brandText .subtitle, .build{ font-size: 10px; line-height: 1.25; }
+  .hudItem{ min-height: 64px; padding: 8px; }
+  .hudValue{ font-size: 20px; }
+  .card{ padding: 10px; }
+  .subCard{ padding: 10px; }
+  .map{ height: 210px; min-height: 210px; }
+  .meta, .hint{ font-size: 11px; }
+}

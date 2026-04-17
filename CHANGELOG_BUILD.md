@@ -1,3 +1,10 @@
+# Histórico de Builds
+
+## 1.4.1 - 2026-04-17 10:18:00 BRT
+- Corrigida a repetição da saudação inicial a cada nova pergunta.
+- Fluxo de despacho estabilizado após completar perguntas obrigatórias.
+- Ajustes mobile-first para portrait com melhor leitura e toque.
+
 # Changelog da Build 1.4.0 / Phase 5A
 
 **Build:** 2026-04-16 19:47:01 BRT  

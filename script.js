@@ -10,14 +10,14 @@
 
 const BUILD_FALLBACK = {
     game: "Last Call Dispatch Operator",
-    version: "1.4.0",
-    stage: "Phase 5A",
-    built_at: "2026-04-16 19:47:01 BRT",
-    built_at_utc: "2026-04-16 22:47:01 UTC",
-    completion_percent: 78,
-    focus: "governança de build, roster internacional base, correção de despacho por papéis e pass mobile-first",
+    version: "1.4.1",
+    stage: "Phase 5B",
+    built_at: "2026-04-17 10:18:00 BRT",
+    built_at_utc: "2026-04-17 13:18:00 UTC",
+    completion_percent: 80,
+    focus: "correção do diálogo incremental, despacho obrigatório estável e mobile-first portrait polish",
     release_channel: "mainline",
-    tag: "launch-roster-mobile-governance-pass"
+    tag: "dialog-dispatch-mobile-hotfix"
   };
   let BUILD_META = { ...BUILD_FALLBACK };
 
@@ -2094,52 +2094,6 @@ function focusIncident(uid) {
   renderAll();
 }
 
-// ----------------------------
-// Stage 7C: Incidentes (manager) + Transcript append-only
-// ----------------------------
-function ensureTranscriptInitialized(call) {
-  if (!call) return;
-  if (call.transcriptInitialized) return;
-
-  const def = call.def;
-  const opener = defaultOpener(def.region, state.agency);
-  const opening = def.opening || def.openText || def.openingText || def.callerOpening || def.title;
-
-  call.transcript = [];
-  call.transcript.push(`Operador: ${opener}`);
-  call.transcript.push("");
-  call.transcript.push(`Chamador: ${opening}`);
-  call.transcript.push("");
-  call.transcriptInitialized = true;
-  call.transcriptText = call.transcript.join("\n");
-}
-
-function appendTranscript(call, lines) {
-  if (!call) return;
-  ensureTranscriptInitialized(call);
-  if (!Array.isArray(lines)) lines = [String(lines)];
-  for (const ln of lines) call.transcript.push(String(ln));
-  call.transcriptText = call.transcript.join("\n");
-}
-
-function computeOnsceneSec(severity, role) {
-  const s = String(severity || "leve").toLowerCase();
-  let base = 10;
-  if (s === "trote") base = 6;
-  if (s === "leve") base = 10;
-  if (s === "medio") base = 14;
-  if (s === "grave") base = 20;
-  if (s === "critico") base = 26;
-
-  // Some roles take longer on scene (bomb/hazmat)
-  if (role === "bomb_gate" || role === "hazmat") base += 10;
-  if (role === "tactical_rota" || role === "shock_riot") base += 4;
-
-  // Upgrades can shorten on-scene handling slightly
-  const m = state.effects && typeof state.effects.onsceneMult === "number" ? state.effects.onsceneMult : 1.0;
-  return Math.max(6, Math.round(base * m));
-}
-
 function getIncidentByUid(uid) {
   return Array.isArray(state.incidents) ? state.incidents.find((x) => x && x.uid === uid) : null;
 }
@@ -2521,9 +2475,13 @@ function getProtocolDef(callDef) {
 
   const hasPending = Array.isArray(state.pendingDispatchUnitIds) && state.pendingDispatchUnitIds.length > 0;
   const selected = el.dispatchUnitSelect ? !!el.dispatchUnitSelect.value : false;
+  const canDispatchNow = canDispatch && (hasPending || selected);
 
   if (el.btnAddUnit) el.btnAddUnit.disabled = !(canDispatch && selected);
-  if (el.btnDispatch) el.btnDispatch.disabled = !(canDispatch && (hasPending || selected));
+  if (el.btnDispatch) {
+    el.btnDispatch.disabled = !canDispatchNow;
+    el.btnDispatch.classList.toggle("isReady", !!canDispatch);
+  }
   if (el.btnDismiss) el.btnDismiss.disabled = !(hasShift && hasActive && !state.activeCall.isIncidentFocus);
 }
 
@@ -2737,11 +2695,11 @@ if (def.hint) convo += `[Dica] ${def.hint}\n`;
       jitterMs: stressJitter,
     };
 
-    if (!force && sameCall && sameText) {
+    if (sameCall && sameText) {
       // não reinicia typewriter
-    } else if (!force && sameCall && state.ui.lastTranscript && convo.startsWith(state.ui.lastTranscript)) {
-      // ✅ Não reescreve o "190/193..." toda hora.
-      // Em vez disso, finaliza o que estiver animando e digita apenas o trecho novo.
+    } else if (sameCall && state.ui.lastTranscript && convo.startsWith(state.ui.lastTranscript)) {
+      // Não reescreve a saudação inicial a cada nova pergunta.
+      // Mesmo em renderizações forçadas, completa o trecho antigo e anima só o novo conteúdo.
       skipTypewriter(el.callText);
       state.ui.lastTranscript = convo;
       typewriterAppend(el.callText, convo, twOpts);

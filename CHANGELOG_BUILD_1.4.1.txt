@@ -1,0 +1,9 @@
+Last Call Dispatch Operator 1.4.1
+Build: 2026-04-17 10:18:00 BRT
+Conclusão: 80%
+
+Hotfixes:
+- Corrigida a repetição da saudação inicial em cada nova pergunta do operador.
+- Mantido o fluxo incremental do diálogo mesmo em renderizações forçadas.
+- Botão de despachar reforçado para permanecer utilizável quando o protocolo obrigatório estiver concluído.
+- Pass de mobile-first portrait com melhor adaptação do header, HUD, botões e cards.
