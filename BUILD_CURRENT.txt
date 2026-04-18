@@ -1,4 +1,6 @@
-Last Call Dispatch Operator 1.4.1
-Build: 2026-04-17 10:18:00 BRT
-Conclusão: 80%
-Foco: correção do diálogo incremental, despacho obrigatório estável e mobile-first portrait polish
+Last Call Dispatch Operator
+Build: 2026-04-18 09:28:00 BRT
+Versão: 1.4.2
+Stage: Phase 5B
+Conclusão: 81%
+Foco: hotfix no despacho sem trava, protocolo com pontuacao, correcoes de transcript e pass extra mobile-first

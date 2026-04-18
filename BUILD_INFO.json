@@ -1,11 +1,17 @@
 {
   "game": "Last Call Dispatch Operator",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "stage": "Phase 5B",
-  "built_at": "2026-04-17 10:18:00 BRT",
-  "built_at_utc": "2026-04-17 13:18:00 UTC",
-  "completion_percent": 80,
-  "focus": "correção do diálogo incremental, despacho obrigatório estável e mobile-first portrait polish",
+  "built_at": "2026-04-18 09:28:00 BRT",
+  "built_at_utc": "2026-04-18 12:28:00 UTC",
+  "completion_percent": 81,
+  "focus": "hotfix no despacho sem trava, protocolo com pontuacao, correcoes de transcript e pass extra mobile-first",
   "release_channel": "mainline",
-  "tag": "dialog-dispatch-mobile-hotfix"
+  "tag": "dispatch-hotfix-free-dispatch-mobile-pass",
+  "notes": [
+    "despacho agora pode acontecer a qualquer momento durante a chamada",
+    "perguntas basicas deixam de bloquear o despacho e passam a influenciar a pontuacao final",
+    "relatorio passa a indicar observacao de protocolo quando o envio acontece cedo demais",
+    "ajustes extras de responsividade para portrait mobile e header critico inline"
+  ]
 }

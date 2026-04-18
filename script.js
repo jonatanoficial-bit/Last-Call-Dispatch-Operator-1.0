@@ -10,14 +10,14 @@
 
 const BUILD_FALLBACK = {
     game: "Last Call Dispatch Operator",
-    version: "1.4.1",
-    stage: "Phase 5B",
-    built_at: "2026-04-17 10:18:00 BRT",
-    built_at_utc: "2026-04-17 13:18:00 UTC",
-    completion_percent: 80,
-    focus: "correção do diálogo incremental, despacho obrigatório estável e mobile-first portrait polish",
+    version: "1.4.0",
+    stage: "Phase 5A",
+    built_at: "2026-04-16 19:47:01 BRT",
+    built_at_utc: "2026-04-16 22:47:01 UTC",
+    completion_percent: 78,
+    focus: "governança de build, roster internacional base, correção de despacho por papéis e pass mobile-first",
     release_channel: "mainline",
-    tag: "dialog-dispatch-mobile-hotfix"
+    tag: "launch-roster-mobile-governance-pass"
   };
   let BUILD_META = { ...BUILD_FALLBACK };
 
@@ -533,7 +533,7 @@ function setIncidentOnMap(call) {
       <div class="meta" id="dqMeta">Nenhuma chamada ativa</div>
       <div id="dqButtons" class="btnRow" style="margin-top:8px;"></div>
       <div class="hint" id="dqHint" style="margin-top:10px;">
-        Faça as perguntas obrigatórias para liberar o despacho.
+        O despacho pode acontecer a qualquer momento, mas fazer as perguntas básicas melhora a pontuação.
       </div>
     `;
 
@@ -2094,6 +2094,52 @@ function focusIncident(uid) {
   renderAll();
 }
 
+// ----------------------------
+// Stage 7C: Incidentes (manager) + Transcript append-only
+// ----------------------------
+function ensureTranscriptInitialized(call) {
+  if (!call) return;
+  if (call.transcriptInitialized) return;
+
+  const def = call.def;
+  const opener = defaultOpener(def.region, state.agency);
+  const opening = def.opening || def.openText || def.openingText || def.callerOpening || def.title;
+
+  call.transcript = [];
+  call.transcript.push(`Operador: ${opener}`);
+  call.transcript.push("");
+  call.transcript.push(`Chamador: ${opening}`);
+  call.transcript.push("");
+  call.transcriptInitialized = true;
+  call.transcriptText = call.transcript.join("\n");
+}
+
+function appendTranscript(call, lines) {
+  if (!call) return;
+  ensureTranscriptInitialized(call);
+  if (!Array.isArray(lines)) lines = [String(lines)];
+  for (const ln of lines) call.transcript.push(String(ln));
+  call.transcriptText = call.transcript.join("\n");
+}
+
+function computeOnsceneSec(severity, role) {
+  const s = String(severity || "leve").toLowerCase();
+  let base = 10;
+  if (s === "trote") base = 6;
+  if (s === "leve") base = 10;
+  if (s === "medio") base = 14;
+  if (s === "grave") base = 20;
+  if (s === "critico") base = 26;
+
+  // Some roles take longer on scene (bomb/hazmat)
+  if (role === "bomb_gate" || role === "hazmat") base += 10;
+  if (role === "tactical_rota" || role === "shock_riot") base += 4;
+
+  // Upgrades can shorten on-scene handling slightly
+  const m = state.effects && typeof state.effects.onsceneMult === "number" ? state.effects.onsceneMult : 1.0;
+  return Math.max(6, Math.round(base * m));
+}
+
 function getIncidentByUid(uid) {
   return Array.isArray(state.incidents) ? state.incidents.find((x) => x && x.uid === uid) : null;
 }
@@ -2208,6 +2254,23 @@ function getProtocolDef(callDef) {
     const required = Array.isArray(protocol.required) ? protocol.required : [];
     const ok = required.every((qid) => !!state.activeCall.asked[qid]);
     state.activeCall.dispatchUnlocked = ok;
+  }
+
+  function getQuestionProgress(callObj) {
+    const c = callObj || state.activeCall;
+    if (!c) return { required: [], requiredAsked: 0, requiredMissing: 0, askedTotal: 0, allRequiredDone: false };
+    const protocol = getProtocolDef(c.def);
+    const required = Array.isArray(protocol.required) ? protocol.required : [];
+    const askedMap = c.asked || {};
+    const requiredAsked = required.filter((qid) => !!askedMap[qid]).length;
+    const askedTotal = Object.keys(askedMap).filter((qid) => !!askedMap[qid]).length;
+    return {
+      required,
+      requiredAsked,
+      requiredMissing: Math.max(0, required.length - requiredAsked),
+      askedTotal,
+      allRequiredDone: required.length ? requiredAsked >= required.length : true,
+    };
   }
 
   function applyQuestionEffect(effect) {
@@ -2349,7 +2412,7 @@ function getProtocolDef(callDef) {
     if (!state.activeCall) {
       dq.meta.textContent = "Nenhuma chamada ativa";
       dq.buttons.innerHTML = "";
-      dq.hint.textContent = "Faça as perguntas obrigatórias para liberar o despacho.";
+      dq.hint.textContent = "O despacho pode acontecer a qualquer momento, mas fazer as perguntas básicas melhora a pontuação.";
       return;
     }
 
@@ -2369,7 +2432,7 @@ function getProtocolDef(callDef) {
       })
       .join("");
 
-    dq.hint.textContent = state.activeCall.def.hint || "Colete dados, libere despacho e envie a unidade correta.";
+    dq.hint.textContent = state.activeCall.def.hint || "Colete dados, acompanhe a gravidade e despache quando julgar necessário.";
 
     const btns = dq.buttons.querySelectorAll("button[data-qid]");
     btns.forEach((b) => {
@@ -2397,6 +2460,7 @@ function getProtocolDef(callDef) {
         <div><b>Tempo total em atendimento:</b> ${fmtTime(report.handleTime)}</div>
         <div><b>Unidade enviada:</b> ${escapeHtml(report.unitName || "—")} (${escapeHtml(report.unitRole || "—")})</div>
         <div><b>Resultado:</b> ${escapeHtml(report.description)}</div>
+        ${report.protocolNote ? `<div><b>Protocolo:</b> ${escapeHtml(report.protocolNote)}</div>` : ""}
         <div style="margin-top:8px;"><b>Pontos:</b> ${report.scoreDelta >= 0 ? "+" : ""}${report.scoreDelta}</div>
         <div><b>XP:</b> ${report.xpDelta >= 0 ? "+" : ""}${report.xpDelta}</div>
       `
@@ -2470,18 +2534,14 @@ function getProtocolDef(callDef) {
   if (el.btnAnswer) el.btnAnswer.disabled = !(hasShift && !hasActive && hasQueue);
   if (el.btnHold) el.btnHold.disabled = !(hasShift && hasActive && !state.activeCall.isIncidentFocus);
 
-  const canDispatch = hasShift && hasActive && (state.activeCall.dispatchUnlocked || state.activeCall.isIncidentFocus);
+  const canDispatch = hasShift && hasActive;
   if (el.dispatchUnitSelect) el.dispatchUnitSelect.disabled = !canDispatch;
 
   const hasPending = Array.isArray(state.pendingDispatchUnitIds) && state.pendingDispatchUnitIds.length > 0;
   const selected = el.dispatchUnitSelect ? !!el.dispatchUnitSelect.value : false;
-  const canDispatchNow = canDispatch && (hasPending || selected);
 
   if (el.btnAddUnit) el.btnAddUnit.disabled = !(canDispatch && selected);
-  if (el.btnDispatch) {
-    el.btnDispatch.disabled = !canDispatchNow;
-    el.btnDispatch.classList.toggle("isReady", !!canDispatch);
-  }
+  if (el.btnDispatch) el.btnDispatch.disabled = !(canDispatch && (hasPending || selected));
   if (el.btnDismiss) el.btnDismiss.disabled = !(hasShift && hasActive && !state.activeCall.isIncidentFocus);
 }
 
@@ -2695,11 +2755,11 @@ if (def.hint) convo += `[Dica] ${def.hint}\n`;
       jitterMs: stressJitter,
     };
 
-    if (sameCall && sameText) {
+    if (!force && sameCall && sameText) {
       // não reinicia typewriter
-    } else if (sameCall && state.ui.lastTranscript && convo.startsWith(state.ui.lastTranscript)) {
-      // Não reescreve a saudação inicial a cada nova pergunta.
-      // Mesmo em renderizações forçadas, completa o trecho antigo e anima só o novo conteúdo.
+    } else if (!force && sameCall && state.ui.lastTranscript && convo.startsWith(state.ui.lastTranscript)) {
+      // ✅ Não reescreve o "190/193..." toda hora.
+      // Em vez disso, finaliza o que estiver animando e digita apenas o trecho novo.
       skipTypewriter(el.callText);
       state.ui.lastTranscript = convo;
       typewriterAppend(el.callText, convo, twOpts);
@@ -2710,9 +2770,14 @@ if (def.hint) convo += `[Dica] ${def.hint}\n`;
     }
 
     if (el.dispatchInfo) {
-      el.dispatchInfo.textContent = c.dispatchUnlocked
-        ? `Despacho liberado. Selecione a unidade e despache.`
-        : `Despacho bloqueado. Faça as perguntas obrigatórias primeiro.`;
+      const progress = getQuestionProgress(c);
+      if (progress.allRequiredDone) {
+        el.dispatchInfo.textContent = `Despacho ideal liberado. Perguntas básicas concluídas.`;
+      } else if (progress.required.length) {
+        el.dispatchInfo.textContent = `Despacho disponível a qualquer momento. Faltam ${progress.requiredMissing} pergunta(s) básica(s) para pontuação melhor.`;
+      } else {
+        el.dispatchInfo.textContent = `Despacho disponível. Colete dados adicionais para aumentar a precisão.`;
+      }
     }
   }
 
@@ -3090,7 +3155,7 @@ if (state.queue.length === 0) {
 
   function addPendingDispatchUnit() {
   if (!state.shiftActive || !state.activeCall) return;
-  const canDispatch = (state.activeCall.dispatchUnlocked || state.activeCall.isIncidentFocus);
+  const canDispatch = true;
   if (!canDispatch) return;
 
   const unitId = el.dispatchUnitSelect ? el.dispatchUnitSelect.value : "";
@@ -3118,11 +3183,7 @@ function dispatchSelectedUnit() {
 
   const c = state.activeCall;
 
-  const canDispatch = (c.dispatchUnlocked || c.isIncidentFocus);
-  if (!canDispatch) {
-    log("⛔ Despacho bloqueado: faça as perguntas obrigatórias.");
-    return;
-  }
+  const canDispatch = true;
 
   // Build list: pending + current selection (if any)
   const pending = Array.isArray(state.pendingDispatchUnitIds) ? [...state.pendingDispatchUnitIds] : [];
@@ -3176,6 +3237,7 @@ function dispatchSelectedUnit() {
   // Normal dispatch from an active call (scores once based on the best-matching unit)
   const def = c.def;
   const severityNow = c.severity;
+  const progress = getQuestionProgress(c);
 
   const correctRoles = (def.dispatch && Array.isArray(def.dispatch.correctRoles)) ? def.dispatch.correctRoles : ["any"];
   const isTrote = (severityNow === "trote") || (c.confidenceTrote >= 6);
@@ -3289,6 +3351,19 @@ function dispatchSelectedUnit() {
 
   scoreDelta += reinfBonus;
 
+  let protocolNote = "";
+  if (progress.requiredMissing > 0) {
+    const missPenalty = progress.requiredMissing * 3;
+    scoreDelta -= missPenalty;
+    xpDelta -= Math.min(2, progress.requiredMissing);
+    protocolNote = `Despacho antecipado sem ${progress.requiredMissing} pergunta(s) básica(s).`;
+    addWarning(protocolNote);
+  } else if (progress.required.length > 0) {
+    scoreDelta += 4;
+    xpDelta += 1;
+    protocolNote = "Protocolo básico completo antes do despacho.";
+  }
+
   state.score += scoreDelta;
   addXp(xpDelta);
 
@@ -3311,6 +3386,7 @@ function dispatchSelectedUnit() {
   if (outcome.outcome === "partial") log(`⚠️ ${outcome.outcomeLabel}: (+${scoreDelta}) XP +${xpDelta}`);
   if (outcome.outcome === "fail") log(`❌ FALHA: (${scoreDelta}) XP ${xpDelta}`);
   if (outcome.outcome === "trote") log(`❌ TROTE: despacho indevido (${scoreDelta}) XP ${xpDelta}`);
+  if (protocolNote) log(`📝 ${protocolNote}`);
 
   setReport({
     title: def.title,

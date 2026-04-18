@@ -1,0 +1,10 @@
+Build 1.4.2 / Phase 5B
+Build: 2026-04-18 09:28:00 BRT
+Conclusão estimada: 81%
+
+Entregas:
+- despacho liberado em qualquer momento da chamada;
+- protocolo básico deixa de bloquear e passa a premiar ou punir a pontuação;
+- correção do fluxo de despacho manual após perguntas;
+- relatório passa a exibir observação de protocolo;
+- pass extra de responsividade para mobile portrait.

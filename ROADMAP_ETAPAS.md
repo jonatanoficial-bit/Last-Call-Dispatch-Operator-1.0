@@ -1,25 +1,22 @@
-## Build Atual
-- 1.4.1 - Hotfix de diálogo, despacho e mobile portrait.
-
 # Roadmap de atualização — Last Call Dispatch Operator
 
-**Build:** 1.4.0 / Phase 5A  
-**Build gerada em:** 2026-04-16 19:47:01 BRT  
-**Conclusão atual estimada:** **78%**
+**Build:** 1.4.2 / Phase 5B  
+**Build gerada em:** 2026-04-18 09:28:00 BRT  
+**Conclusão atual estimada:** **81%**
 
 ## Etapas até o padrão comercial internacional
 
 1. **Governança de build e rastreabilidade** — versão, data/hora e progresso sempre visíveis; pacote sempre completo em ZIP.  
-   **Status:** concluído nesta build.
+   **Status:** concluído.
 
 2. **Roster base internacional** — cidades iniciais com forças nomeadas por agência e país.  
-   **Status:** concluído em primeira versão nesta build.
+   **Status:** concluído em primeira versão.
 
-3. **Despacho confiável** — compatibilidade real entre tipo de ocorrência e papel operacional da unidade.  
-   **Status:** concluído nesta build.
+3. **Despacho confiável e flexível** — o jogador pode agir a qualquer momento; protocolo básico influencia resultado e pontuação.  
+   **Status:** concluído nesta hotfix build.
 
 4. **Mobile-first polish** — HUD, topbar, mapa e botões adaptados para telas menores.  
-   **Status:** concluído em primeira versão nesta build.
+   **Status:** concluído em segunda passagem.
 
 5. **Conteúdo premium por cidade** — chamadas exclusivas, sotaques/textos locais, protocolos por região e eventos especiais.  
    **Status:** pendente.
@@ -30,13 +27,12 @@
 7. **Vertical slice premium** — briefing/debriefing, onboarding, áudio consistente, UX cinematográfica, acessibilidade e retenção.  
    **Status:** pendente.
 
-8. **Monetização e DLCs** — pacotes regionais, crises especiais, eventos catastróficos, novas centrais e conteúdo sazonal.  
+8. **Monetização e DLCs** — pacotes regionais, crises especiais, novas centrais e conteúdo sazonal.  
    **Status:** planejado.
 
 ## Meta da próxima build
 Levar o projeto a **85%** com foco em:
-- 25 a 40 novas ocorrências exclusivas por cidade/região;
-- tela de debriefing premium com KPIs, multas, bônus e vidas salvas;
-- tutorial guiado do primeiro plantão;
-- balanceamento de ETA, reputação e economia;
-- base pronta para DLC regional e testes de monetização.
+- debriefing premium com métricas de protocolo, tempo e qualidade de decisão;
+- feedback visual mais forte para agravamento e despacho em curso;
+- novos casos exclusivos por cidade/região;
+- tutorial guiado do primeiro plantão.
